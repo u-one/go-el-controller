@@ -61,12 +61,6 @@ func NewFrame(data []byte) (Frame, error) {
 	ESV := ESVType(EDATA[6:7][0])
 	OPC := EDATA[7:8]
 
-	epcOffset := 8
-	EPC := EDATA[epcOffset : epcOffset+1]
-	PDC := EDATA[epcOffset+1 : epcOffset+2]
-	propertyValueLen := int(PDC[0])
-	EDT := EDATA[epcOffset+2 : epcOffset+2+propertyValueLen]
-
 	log.Println("EHD:", EHD)
 	log.Println("TID:", TID)
 	log.Println("SEOJ:", SEOJ, " (Source Echonet lite object)")
@@ -74,15 +68,30 @@ func NewFrame(data []byte) (Frame, error) {
 	log.Println("ESV:", ESV, " (Echonet Lite Service)")
 	log.Println("OPC:", OPC, " (Num of properties)")
 
-	props := (*ClassMap)[NewClassCode(SEOJ[:2])]
-	desc := ""
-	if props != nil {
-		desc = props[EPCCode(EPC[0])]
-	}
+	pNum := int(OPC[0])
 
-	log.Println("EPC:", EPC, " (Echonet lite property) ", desc)
-	log.Println("PDC:", PDC, " (Length (bytes) of EDT)")
-	log.Println("EDT:", EDT, " (Property data)")
+	props := (*ClassMap)[NewClassCode(SEOJ[:2])]
+	log.Println("props:", props)
+
+	epcOffsetBase := 8
+	epcOffset := epcOffsetBase
+	for i := 0; i < pNum; i++ {
+		EPC := EDATA[epcOffset : epcOffset+1]
+		PDC := EDATA[epcOffset+1 : epcOffset+2]
+		propertyValueLen := int(PDC[0])
+		EDT := EDATA[epcOffset+2 : epcOffset+2+propertyValueLen]
+
+		desc := ""
+		if props != nil {
+			desc = props[EPCCode(EPC[0])]
+		}
+
+		log.Println("EPC:", EPC, " (Echonet lite property) ", desc)
+		log.Println("PDC:", PDC, " (Length (bytes) of EDT)")
+		log.Println("EDT:", EDT, " (Property data)")
+
+		epcOffset += (2 + propertyValueLen)
+	}
 
 	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: []Property{}}, nil
 }
@@ -298,16 +307,12 @@ func load() *map[ClassCode]PropertyDefs {
 	return &classMap
 }
 
-func write() {
-	conn, err := net.Dial("udp", MulticastIP+Port)
-	if err != nil {
-		log.Println("Write conn error:", err)
-		return
-	}
-	defer conn.Close()
+func sendFrame(conn net.Conn, frame *Frame) {
+	log.Println("sendFrame")
+	write(conn, []byte(frame.Data))
+}
 
-	data := []byte{0x10, 0x81, 0x0, 0x0, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
-	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
+func write(conn net.Conn, data []byte) {
 
 	length, err := conn.Write(data)
 	if err != nil {
@@ -316,14 +321,67 @@ func write() {
 	log.Println("written:", length)
 }
 
+func createInfFrame() *Frame {
+	// INF
+	data := []byte{0x10, 0x81, 0x0, 0x0, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
+	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
+	frame, err := NewFrame(data)
+	if err != nil {
+		log.Print("Error:", err)
+		return nil
+	}
+	log.Print(frame)
+	return &frame
+}
+
+func createInfReqFrame() *Frame {
+	// INF_REQ
+	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
+	frame, err := NewFrame(data)
+	if err != nil {
+		log.Print("Error:", err)
+		return nil
+	}
+	log.Print(frame)
+	return &frame
+}
+
+func createGetFrame() *Frame {
+	// INF_REQ
+	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
+	frame, err := NewFrame(data)
+	if err != nil {
+		log.Print("Error:", err)
+		return nil
+	}
+	log.Print(frame)
+	return &frame
+}
+
 func start() {
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
 	done := read(ctx)
 
-	write()
+	conn, err := net.Dial("udp", MulticastIP+Port)
+	if err != nil {
+		log.Println("Write conn error:", err)
+		return
+	}
+	defer conn.Close()
+
+	f := createInfFrame()
+	sendFrame(conn, f)
+
+	// ver.1.0
+	f = createInfReqFrame()
+	sendFrame(conn, f)
+
+	// ver.1.1
+	f = createGetFrame()
+	sendFrame(conn, f)
 
 	log.Println("wait for read done")
 	res := <-done
