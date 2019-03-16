@@ -2,17 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"net"
-	"os"
-	"strings"
 	"time"
+
+	"github.com/u-one/go-el-controller/class"
 )
 
 var (
@@ -22,8 +19,8 @@ var (
 	Port = ":3610"
 )
 var (
-	// ClassMap is a map with ClassCode as key and PropertyDefs as value
-	ClassMap *map[ClassCode]PropertyDefs
+	// ClassInfoMap is a map with ClassCode as key and PropertyDefs as value
+	ClassInfoMap class.ClassInfoMap
 )
 
 // Data represents binary data
@@ -70,8 +67,8 @@ func NewFrame(data []byte) (Frame, error) {
 
 	pNum := int(OPC[0])
 
-	props := (*ClassMap)[NewClassCode(SEOJ[:2])]
-	log.Println("props:", props)
+	clsInfo := ClassInfoMap[class.NewClassCode(SEOJ[0], SEOJ[1])]
+	log.Println("ClassInfo:", clsInfo)
 
 	epcOffsetBase := 8
 	epcOffset := epcOffsetBase
@@ -82,8 +79,11 @@ func NewFrame(data []byte) (Frame, error) {
 		EDT := EDATA[epcOffset+2 : epcOffset+2+propertyValueLen]
 
 		desc := ""
-		if props != nil {
-			desc = props[EPCCode(EPC[0])]
+		if clsInfo != nil {
+			prop := clsInfo.Properties[class.PropertyCode(EPC[0])]
+			if prop != nil {
+				desc = prop.Detail
+			}
 		}
 
 		log.Println("EPC:", EPC, " (Echonet lite property) ", desc)
@@ -214,98 +214,11 @@ func read(ctx context.Context) chan bool {
 	return ch
 }
 
-// ClassCode is Echonet-Lite Class information
-type ClassCode struct {
-	ClassGroupCode byte
-	ClassCode      byte
-}
-
-// NewClassCode returns new instance of ClassCode
-func NewClassCode(code []byte) ClassCode {
-	log.Println("NewClassCode:", code)
-	return ClassCode{
-		ClassGroupCode: code[0],
-		ClassCode:      code[1],
-	}
-}
-
 // EPCCode is EPC code
 type EPCCode byte
 
 // PropertyDefs is a map EPCCode as key detail string as value
 type PropertyDefs map[EPCCode]string
-
-func load() *map[ClassCode]PropertyDefs {
-	csvPath := "../../SonyCSL/ECHONETLite-ObjectDatabase/data/csv/ja"
-	files, err := ioutil.ReadDir(csvPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	classMap := make(map[ClassCode]PropertyDefs)
-
-	for _, file := range files {
-		func() {
-			log.Println(csvPath, file.Name())
-			name := strings.Split(file.Name(), ".")[0]
-
-			if !strings.HasPrefix(name, "0x") {
-				log.Println("Not property file: ", name)
-				return
-			}
-
-			decodedClassCodes, err := hex.DecodeString(strings.TrimPrefix(name, "0x"))
-			log.Println(decodedClassCodes)
-
-			properties := make(PropertyDefs, 0)
-
-			path := csvPath + "/" + file.Name()
-			f, err := os.Open(path)
-			defer f.Close()
-			if err != nil {
-				log.Fatal(err)
-				return
-			}
-			var epcBegan = false
-
-			r := csv.NewReader(f)
-			for {
-				record, err := r.Read()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					log.Fatal(err)
-					continue
-				}
-				if record[0] == "EPC" {
-					epcBegan = true
-					continue
-				}
-				if !epcBegan {
-					continue
-				}
-				log.Println(record[0])
-				if !strings.HasPrefix(record[0], "0x") {
-					continue
-				}
-				if len(record[0]) == 0 {
-					continue
-				}
-				d, err := hex.DecodeString(strings.TrimPrefix(record[0], "0x"))
-				if err != nil {
-					log.Println("failed to decode:", record[0])
-					continue
-				}
-				properties[EPCCode(d[0])] = record[1]
-			}
-			c := Data(decodedClassCodes)
-			//log.Println("Decoded class code", c)
-			classMap[NewClassCode(c)] = properties
-		}()
-	}
-	return &classMap
-}
 
 func sendFrame(conn net.Conn, frame *Frame) {
 	log.Println("sendFrame")
@@ -391,6 +304,6 @@ func start() {
 func main() {
 	flag.Parse()
 
-	ClassMap = load()
+	ClassInfoMap = class.Load()
 	start()
 }
