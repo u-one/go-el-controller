@@ -12,6 +12,18 @@ import (
 
 type ClassInfoMap map[ClassCode]*ClassInfo
 
+func (cim ClassInfoMap) Get(code ClassCode) *ClassInfo {
+	if cim[code] != nil {
+		return cim[code]
+	}
+	return &ClassInfo{
+		ClassGroupCode: code.ClassGroupCode,
+		ClassCode:      code.ClassCode,
+		Properties:     make(map[PropertyCode]*PropertyInfo),
+		Desc:           "unknown",
+	}
+}
+
 // ClassCode is Echonet-Lite Class information
 type ClassCode struct {
 	ClassGroupCode byte
@@ -31,7 +43,7 @@ type ClassInfo struct {
 	ClassGroupCode byte
 	ClassCode      byte
 	Properties     map[PropertyCode]*PropertyInfo
-	Description    string
+	Desc           string
 }
 
 func NewClassInfo() *ClassInfo {
@@ -78,6 +90,7 @@ func Load() ClassInfoMap {
 				ClassGroupCode: codes[0],
 				ClassCode:      codes[1],
 				Properties:     properties,
+				Desc:           "",
 			}
 			classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 		}
@@ -85,15 +98,29 @@ func Load() ClassInfoMap {
 
 	properties := loadFromFile(path + "/DeviceObject.csv")
 	if properties != nil {
+		properties[0xd3] = &PropertyInfo{Code: 0xd3, Detail: "自ノードインスタンス数"}
+		properties[0xd4] = &PropertyInfo{Code: 0xd4, Detail: "自ノードクラス数"}
+		properties[0xd5] = &PropertyInfo{Code: 0xd5, Detail: "インスタンスリスト通知"}
+		properties[0xd6] = &PropertyInfo{Code: 0xd6, Detail: "自ノードインスタンスリストS"}
+		properties[0xd7] = &PropertyInfo{Code: 0xd7, Detail: "自ノードクラスリストS"}
 		cls := ClassInfo{
 			ClassGroupCode: 0x0e,
 			ClassCode:      0xf0,
 			Properties:     properties,
-			Description:    "ノードプロファイル",
+			Desc:           "ノードプロファイル",
 		}
 		log.Println(cls)
 		classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 	}
+
+	cls := ClassInfo{
+		ClassGroupCode: 0x05,
+		ClassCode:      0xff,
+		Properties:     make(map[PropertyCode]*PropertyInfo, 0),
+		Desc:           "コントローラ",
+	}
+	log.Println(cls)
+	classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 
 	return classMap
 }
