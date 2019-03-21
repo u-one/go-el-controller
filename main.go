@@ -7,16 +7,41 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/u-one/go-el-controller/class"
 )
+
+var (
+	tempMetrics = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "home",
+			Subsystem: "aircon",
+			Name:      "temperature",
+			Help:      "aircon temp",
+		},
+		[]string{
+			"ip", "type",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(tempMetrics)
+
+}
 
 var (
 	// MulticastIP is Echonet-Lite multicast address
 	MulticastIP = "224.0.23.0"
 	// Port is Echonet-Lite receive port
 	Port = ":3610"
+
+	srv http.Server
 )
 var (
 	// ClassInfoMap is a map with ClassCode as key and PropertyDefs as value
@@ -60,9 +85,10 @@ func NewFrame(data []byte) (Frame, error) {
 	ESV := ESVType(EDATA[6:7][0])
 	OPC := EDATA[7:8]
 
-	classCode := class.NewClassCode(SEOJ[0], SEOJ[1])
-	sObjInfo := ClassInfoMap.Get(classCode)
-	dObjInfo := ClassInfoMap.Get(classCode)
+	sClassCode := class.NewClassCode(SEOJ[0], SEOJ[1])
+	dClassCode := class.NewClassCode(DEOJ[0], DEOJ[1])
+	sObjInfo := ClassInfoMap.Get(sClassCode)
+	dObjInfo := ClassInfoMap.Get(dClassCode)
 
 	log.Println("EHD:", EHD)
 	log.Println("TID:", TID)
@@ -95,13 +121,13 @@ func NewFrame(data []byte) (Frame, error) {
 		log.Println("EDT:", EDT, " (Property data)")
 
 		props = append(props, Property{Code: EPC[0], Len: int(PDC[0]), Data: EDT})
-		log.Println("props:", props)
 
 		epcOffset += (2 + propertyValueLen)
 	}
+	log.Println("props:", props)
 
 	log.Println("-----------------")
-	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, ClassCode: classCode, Properties: props}, nil
+	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, ClassCode: sClassCode, Properties: props}, nil
 }
 
 // ESVType represnts type of ESV
@@ -179,12 +205,12 @@ type Property struct {
 	Data Data
 }
 
-func read(ctx context.Context) chan bool {
-	ch := make(chan bool)
+func readMulticast(ctx context.Context, wg sync.WaitGroup) {
 	go func() {
-		defer close(ch)
+		defer wg.Done()
 		log.Println("Start to listen multicast udp ", MulticastIP, Port)
 		address, err := net.ResolveUDPAddr("udp", MulticastIP+Port)
+		log.Println("resolved:", address)
 		if err != nil {
 			log.Println("Error: ", err)
 			return
@@ -202,7 +228,10 @@ func read(ctx context.Context) chan bool {
 			conn.SetDeadline(time.Now().Add(1 * time.Second))
 			length, remoteAddress, err := conn.ReadFromUDP(buffer)
 			if err != nil {
-				log.Println("Error: ", err)
+				err, ok := err.(net.Error)
+				if !ok || !err.Timeout() {
+					log.Println("Error: ", err)
+				}
 			}
 			if length > 0 {
 				fmt.Println()
@@ -211,8 +240,8 @@ func read(ctx context.Context) chan bool {
 					log.Println(err)
 					continue
 				}
-				log.Printf("[%v] %v\n", remoteAddress, frame)
-				err = frameReceived(frame)
+				log.Printf("[%v] %v\n", remoteAddress.IP.String(), frame)
+				err = frameReceived(remoteAddress.IP.String(), frame)
 				if err != nil {
 					log.Println(err)
 				}
@@ -220,14 +249,58 @@ func read(ctx context.Context) chan bool {
 			select {
 			case <-ctx.Done():
 				log.Println("ctx.Done")
-				ch <- true
 				return
 			default:
 				//log.Println("recv: ", length)
 			}
 		}
 	}()
-	return ch
+}
+
+func readUnicast(ctx context.Context, wg sync.WaitGroup) {
+	go func() {
+		defer wg.Done()
+
+		udpAddr, err := net.ResolveUDPAddr("udp", MulticastIP+Port)
+		if err != nil {
+			log.Println("Unicast Error: ", err)
+			return
+		}
+		conn, err := net.ListenUDP("udp", udpAddr)
+		if err != nil {
+			log.Println("Unicast Error: ", err)
+			return
+		}
+		defer conn.Close()
+
+		buffer := make([]byte, 1500)
+		for {
+			conn.SetDeadline(time.Now().Add(1 * time.Second))
+			length, remoteAddress, err := conn.ReadFrom(buffer)
+			if err != nil {
+				log.Println("Unicast Error:", err)
+			}
+			if length > 0 {
+				fmt.Println()
+				frame, err := NewFrame(buffer[:length])
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("Unicast [%v] %v\n", remoteAddress, frame)
+				err = frameReceived(remoteAddress.String(), frame)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+			select {
+			case <-ctx.Done():
+				log.Println("ctx.Done")
+				return
+			default:
+			}
+		}
+	}()
 }
 
 type ClassGroupCode byte
@@ -247,7 +320,7 @@ const (
 	MeasuredOutdoorTemperature PropertyCode = 0xBE
 )
 
-func frameReceived(f Frame) error {
+func frameReceived(addr string, f Frame) error {
 	//sObjInfo := ClassInfoMap.Get(f.ClassCode)
 	classCode := f.ClassCode
 	log.Println("frameReceived:", classCode)
@@ -266,6 +339,7 @@ func frameReceived(f Frame) error {
 					}
 					temp := int(p.Data[0])
 					log.Printf("室温:%d℃\n", temp)
+					tempMetrics.With(prometheus.Labels{"ip": addr, "type": "room"}).Set(float64(temp))
 					break
 				case MeasuredOutdoorTemperature:
 					if p.Len != 1 {
@@ -273,6 +347,7 @@ func frameReceived(f Frame) error {
 					}
 					temp := int(p.Data[0])
 					log.Printf("外気温:%d℃\n", temp)
+					tempMetrics.With(prometheus.Labels{"ip": addr, "type": "outside"}).Set(float64(temp))
 					break
 				}
 			}
@@ -357,42 +432,98 @@ func createAirconGetFrame() *Frame {
 
 func start() {
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	//ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	done := read(ctx)
+	var wg sync.WaitGroup
 
-	conn, err := net.Dial("udp", MulticastIP+Port)
-	if err != nil {
-		log.Println("Write conn error:", err)
-		return
-	}
-	defer conn.Close()
+	wg.Add(1)
+	readMulticast(ctx, wg)
 
-	f := createInfFrame()
-	sendFrame(conn, f)
+	//wg.Add(1)
+	//readUnicast(ctx, wg)
 
-	// ver.1.0
-	f = createInfReqFrame()
-	sendFrame(conn, f)
+	wg.Add(1)
+	sendLoop(ctx, wg)
+	//f = createAirconGetFrame()
+	//sendFrame(conn, f)
 
-	// ver.1.1
-	f = createGetFrame()
-	sendFrame(conn, f)
-
-	time.Sleep(time.Second * 3)
-
-	f = createAirconGetFrame()
-	sendFrame(conn, f)
+	wg.Add(1)
+	startExporter(ctx, wg)
 
 	log.Println("wait for read done")
-	res := <-done
-	log.Println("read finish: ", res)
+	wg.Wait()
+	log.Println("finish ")
+}
+
+func sendLoop(ctx context.Context, wg sync.WaitGroup) {
+	go func() {
+		defer wg.Done()
+		conn, err := net.Dial("udp", MulticastIP+Port)
+		if err != nil {
+			log.Println("Write conn error:", err)
+			return
+		}
+		defer conn.Close()
+
+		f := createInfFrame()
+		sendFrame(conn, f)
+
+		// ver.1.0
+		f = createInfReqFrame()
+		sendFrame(conn, f)
+
+		// ver.1.1
+		f = createGetFrame()
+		sendFrame(conn, f)
+
+		time.Sleep(time.Second * 3)
+
+		t := time.NewTicker(10 * time.Second)
+		f = createAirconGetFrame()
+		sendFrame(conn, f)
+
+		log.Println("start sendLoop")
+
+		for {
+			select {
+			case <-t.C:
+				f := createAirconGetFrame()
+				sendFrame(conn, f)
+			case <-ctx.Done():
+				return
+			}
+		}
+		t.Stop()
+	}()
+}
+
+var exporterAddr = flag.String("listen-address", ":8083", "The address to listen on for HTTP requests.")
+
+func startExporter(ctx context.Context, wg sync.WaitGroup) {
+
+	ch := make(chan error)
+	go func() {
+		defer close(ch)
+		srv := http.NewServeMux()
+		srv.Handle("/metrics", promhttp.Handler())
+		defer wg.Done()
+		log.Println("startExporter: ", *exporterAddr)
+		http.Handle("/metrics", promhttp.Handler())
+		select {
+		case ch <- http.ListenAndServe(*exporterAddr, srv):
+		case <-ctx.Done():
+		}
+		log.Println("exporter finished")
+	}()
 }
 
 func main() {
 	flag.Parse()
 
 	ClassInfoMap = class.Load()
+
 	start()
+
 }
