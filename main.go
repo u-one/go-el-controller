@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -47,102 +46,41 @@ var (
 	ClassInfoMap class.ClassInfoMap
 )
 
-func readMulticast(ctx context.Context, wg sync.WaitGroup) {
+type ELController struct {
+	MulticastReceiver MulticastReceiver
+	MulticastSender   MulticastSender
+}
+
+func (elc ELController) readMulticast(ctx context.Context, wg sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
-		log.Println("Start to listen multicast udp ", MulticastIP, Port)
-		address, err := net.ResolveUDPAddr("udp", MulticastIP+Port)
-		log.Println("resolved:", address)
-		if err != nil {
-			log.Println("Error: ", err)
-			return
-		}
-		conn, err := net.ListenMulticastUDP("udp", nil, address)
-		if err != nil {
-			log.Println("Error:", err)
-			return
-		}
-		defer conn.Close()
-		buffer := make([]byte, 1500)
 
-		for {
-			fmt.Printf(".")
-			conn.SetDeadline(time.Now().Add(1 * time.Second))
-			length, remoteAddress, err := conn.ReadFromUDP(buffer)
-			if err != nil {
-				err, ok := err.(net.Error)
-				if !ok || !err.Timeout() {
-					log.Println("Error: ", err)
+		ch := elc.MulticastReceiver.Start(ctx)
+
+		handler := func(results <-chan ReceiveResult) {
+			for result := range results {
+				if result.Err != nil {
+					log.Println(result.Err)
+					continue
 				}
-			}
-			if length > 0 {
-				fmt.Println()
-				frame, err := ParseFrame(buffer[:length])
+				frame, err := ParseFrame(result.Data)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				log.Printf("[%v] %v\n", remoteAddress.IP.String(), frame)
-				err = frameReceived(remoteAddress.IP.String(), frame)
+				log.Printf("[%v] %v\n", result.Address, frame)
+				err = frameReceived(result.Address, frame)
 				if err != nil {
 					log.Println(err)
 				}
 			}
-			select {
-			case <-ctx.Done():
-				log.Println("ctx.Done")
-				return
-			default:
-				//log.Println("recv: ", length)
-			}
 		}
+
+		handler(ch)
 	}()
 }
 
-func readUnicast(ctx context.Context, wg sync.WaitGroup) {
-	go func() {
-		defer wg.Done()
-
-		udpAddr, err := net.ResolveUDPAddr("udp", MulticastIP+Port)
-		if err != nil {
-			log.Println("Unicast Error: ", err)
-			return
-		}
-		conn, err := net.ListenUDP("udp", udpAddr)
-		if err != nil {
-			log.Println("Unicast Error: ", err)
-			return
-		}
-		defer conn.Close()
-
-		buffer := make([]byte, 1500)
-		for {
-			conn.SetDeadline(time.Now().Add(1 * time.Second))
-			length, remoteAddress, err := conn.ReadFrom(buffer)
-			if err != nil {
-				log.Println("Unicast Error:", err)
-			}
-			if length > 0 {
-				fmt.Println()
-				frame, err := ParseFrame(buffer[:length])
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				log.Printf("Unicast [%v] %v\n", remoteAddress, frame)
-				err = frameReceived(remoteAddress.String(), frame)
-				if err != nil {
-					log.Println(err)
-				}
-			}
-			select {
-			case <-ctx.Done():
-				log.Println("ctx.Done")
-				return
-			default:
-			}
-		}
-	}()
+func (elc ELController) readUnicast(ctx context.Context, wg sync.WaitGroup) {
 }
 
 func frameReceived(addr string, f Frame) error {
@@ -184,21 +122,6 @@ func frameReceived(addr string, f Frame) error {
 	return nil
 }
 
-func sendFrame(conn net.Conn, frame *Frame) {
-	log.Println("sendFrame")
-	frame.Print()
-	write(conn, []byte(frame.Data))
-}
-
-func write(conn net.Conn, data []byte) {
-
-	length, err := conn.Write(data)
-	if err != nil {
-		log.Println("Write error: ", err)
-	}
-	log.Println("written:", length)
-}
-
 func start() {
 	ctx := context.Background()
 	//ctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -207,14 +130,29 @@ func start() {
 
 	var wg sync.WaitGroup
 
+	ms, err := NewUDPMulticastSender(MulticastIP, Port)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer ms.Close()
+
+	elc := ELController{
+		MulticastReceiver: &UDPMulticastReceiver{
+			IP:   MulticastIP,
+			Port: Port,
+		},
+		MulticastSender: ms,
+	}
+
 	wg.Add(1)
-	readMulticast(ctx, wg)
+	elc.readMulticast(ctx, wg)
 
 	//wg.Add(1)
-	//readUnicast(ctx, wg)
+	//elc.readUnicast(ctx, wg)
 
 	wg.Add(1)
-	sendLoop(ctx, wg)
+	elc.sendLoop(ctx, wg)
 	//f = createAirconGetFrame()
 	//sendFrame(conn, f)
 
@@ -226,32 +164,32 @@ func start() {
 	log.Println("finish ")
 }
 
-func sendLoop(ctx context.Context, wg sync.WaitGroup) {
+func (elc ELController) sendLoop(ctx context.Context, wg sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
-		conn, err := net.Dial("udp", MulticastIP+Port)
-		if err != nil {
-			log.Println("Write conn error:", err)
-			return
+
+		sendFrame := func(f *Frame) {
+			log.Println("sendFrame")
+			f.Print()
+			elc.MulticastSender.Send([]byte(f.Data))
 		}
-		defer conn.Close()
 
 		f := createInfFrame()
-		sendFrame(conn, f)
+		sendFrame(f)
 
 		// ver.1.0
 		f = createInfReqFrame()
-		sendFrame(conn, f)
+		sendFrame(f)
 
 		// ver.1.1
 		f = createGetFrame()
-		sendFrame(conn, f)
+		sendFrame(f)
 
 		time.Sleep(time.Second * 3)
 
 		t := time.NewTicker(30 * time.Second)
 		f = createAirconGetFrame()
-		sendFrame(conn, f)
+		sendFrame(f)
 
 		log.Println("start sendLoop")
 
@@ -259,7 +197,7 @@ func sendLoop(ctx context.Context, wg sync.WaitGroup) {
 			select {
 			case <-t.C:
 				f := createAirconGetFrame()
-				sendFrame(conn, f)
+				sendFrame(f)
 			case <-ctx.Done():
 				return
 			}
