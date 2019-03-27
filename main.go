@@ -77,7 +77,7 @@ func readMulticast(ctx context.Context, wg sync.WaitGroup) {
 			}
 			if length > 0 {
 				fmt.Println()
-				frame, err := NewFrame(buffer[:length])
+				frame, err := ParseFrame(buffer[:length])
 				if err != nil {
 					log.Println(err)
 					continue
@@ -124,7 +124,7 @@ func readUnicast(ctx context.Context, wg sync.WaitGroup) {
 			}
 			if length > 0 {
 				fmt.Println()
-				frame, err := NewFrame(buffer[:length])
+				frame, err := ParseFrame(buffer[:length])
 				if err != nil {
 					log.Println(err)
 					continue
@@ -146,9 +146,10 @@ func readUnicast(ctx context.Context, wg sync.WaitGroup) {
 }
 
 func frameReceived(addr string, f Frame) error {
-	//sObjInfo := ClassInfoMap.Get(f.ClassCode)
-	classCode := f.ClassCode
+	//sObjInfo := ClassInfoMap.Get(f.SrcClassCode)
+	classCode := f.SrcClassCode()
 	log.Println("frameReceived:", classCode)
+	f.Print()
 
 	switch ClassGroupCode(classCode.ClassGroupCode) {
 	case AirConditioner:
@@ -185,6 +186,7 @@ func frameReceived(addr string, f Frame) error {
 
 func sendFrame(conn net.Conn, frame *Frame) {
 	log.Println("sendFrame")
+	frame.Print()
 	write(conn, []byte(frame.Data))
 }
 

@@ -33,13 +33,11 @@ type Frame struct {
 	DEOJ       Data    // Destination Echonet Lite Object
 	ESV        ESVType // Echonet Lite Service
 	OPC        Data    // Num of Properties
-	ClassCode  class.ClassCode
 	Properties []Property
 }
 
-// NewFrame returns Frame
-func NewFrame(data []byte) (Frame, error) {
-	log.Println("Frame------------")
+// ParseFrame returns Frame
+func ParseFrame(data []byte) (Frame, error) {
 	if len(data) < 9 {
 		return Frame{}, fmt.Errorf("size is too short:%d", len(data))
 	}
@@ -52,18 +50,6 @@ func NewFrame(data []byte) (Frame, error) {
 	ESV := ESVType(EDATA[6:7][0])
 	OPC := EDATA[7:8]
 
-	sClassCode := class.NewClassCode(SEOJ[0], SEOJ[1])
-	dClassCode := class.NewClassCode(DEOJ[0], DEOJ[1])
-	sObjInfo := ClassInfoMap.Get(sClassCode)
-	dObjInfo := ClassInfoMap.Get(dClassCode)
-
-	log.Println("EHD:", EHD)
-	log.Println("TID:", TID)
-	log.Println("SEOJ:", SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
-	log.Println("DEOJ:", DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
-	log.Println("ESV:", ESV, " (Echonet Lite Service)")
-	log.Println("OPC:", OPC, " (Num of properties)")
-
 	pNum := int(OPC[0])
 	props := make([]Property, 0, pNum)
 
@@ -75,26 +61,50 @@ func NewFrame(data []byte) (Frame, error) {
 		propertyValueLen := int(PDC[0])
 		EDT := EDATA[epcOffset+2 : epcOffset+2+propertyValueLen]
 
+		props = append(props, Property{Code: EPC[0], Len: int(PDC[0]), Data: EDT})
+
+		epcOffset += (2 + propertyValueLen)
+	}
+
+	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}, nil
+}
+
+func (f Frame) SrcClassCode() class.ClassCode {
+	return class.NewClassCode(f.SEOJ[0], f.SEOJ[1])
+}
+
+func (f Frame) DstClassCode() class.ClassCode {
+	return class.NewClassCode(f.DEOJ[0], f.DEOJ[1])
+}
+
+func (f Frame) Print() {
+	sObjInfo := ClassInfoMap.Get(f.SrcClassCode())
+	dObjInfo := ClassInfoMap.Get(f.DstClassCode())
+
+	log.Println("============ Frame ============")
+	log.Println(" ", f.Data)
+	log.Println("  -----------------------------")
+	log.Println("  EHD:", f.EHD)
+	log.Println("  TID:", f.TID)
+	log.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
+	log.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
+	log.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
+	log.Println("  OPC:", f.OPC, " (Num of properties)")
+
+	for i, p := range f.Properties {
 		desc := ""
 		if sObjInfo != nil {
-			prop := sObjInfo.Properties[class.PropertyCode(EPC[0])]
+			prop := sObjInfo.Properties[class.PropertyCode(p.Code)]
 			if prop != nil {
 				desc = prop.Detail
 			}
 		}
 
-		log.Println("EPC:", EPC, " (Echonet lite property) ", desc)
-		log.Println("PDC:", PDC, " (Length (bytes) of EDT)")
-		log.Println("EDT:", EDT, " (Property data)")
-
-		props = append(props, Property{Code: EPC[0], Len: int(PDC[0]), Data: EDT})
-
-		epcOffset += (2 + propertyValueLen)
+		log.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
+		log.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
+		log.Printf("  EDT%d: %s (Property data)", i, p.Data)
 	}
-	log.Println("props:", props)
-
-	log.Println("-----------------")
-	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, ClassCode: sClassCode, Properties: props}, nil
+	log.Println("===============================")
 }
 
 // ESVType represnts type of ESV
@@ -192,7 +202,7 @@ func createInfFrame() *Frame {
 	// INF
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
-	frame, err := NewFrame(data)
+	frame, err := ParseFrame(data)
 	if err != nil {
 		log.Print("Error:", err)
 		return nil
@@ -204,7 +214,7 @@ func createInfFrame() *Frame {
 func createInfReqFrame() *Frame {
 	// INF_REQ
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
-	frame, err := NewFrame(data)
+	frame, err := ParseFrame(data)
 	if err != nil {
 		log.Print("Error:", err)
 		return nil
@@ -217,7 +227,7 @@ func createGetFrame() *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
-	frame, err := NewFrame(data)
+	frame, err := ParseFrame(data)
 	if err != nil {
 		log.Print("Error:", err)
 		return nil
@@ -231,7 +241,7 @@ func createAirconGetFrame() *Frame {
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0x80, 0x00, 0x9f, 0x00}
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00}
 
-	frame, err := NewFrame(data)
+	frame, err := ParseFrame(data)
 	if err != nil {
 		log.Print("Error:", err)
 		return nil
