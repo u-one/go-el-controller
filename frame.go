@@ -69,14 +69,17 @@ func ParseFrame(data []byte) (Frame, error) {
 	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}, nil
 }
 
+// SrcClassCode returns src class code
 func (f Frame) SrcClassCode() class.ClassCode {
 	return class.NewClassCode(f.SEOJ[0], f.SEOJ[1])
 }
 
+// DstClassCode returns dst class code
 func (f Frame) DstClassCode() class.ClassCode {
 	return class.NewClassCode(f.DEOJ[0], f.DEOJ[1])
 }
 
+// Print prints frame detail
 func (f Frame) Print() {
 	sObjInfo := ClassInfoMap.Get(f.SrcClassCode())
 	dObjInfo := ClassInfoMap.Get(f.DstClassCode())
@@ -175,8 +178,13 @@ func (f Frame) String() string {
 	return hex.EncodeToString(f.Data)
 }
 
+// ClassGroupCode represents class gruop code
 type ClassGroupCode byte
+
+// ClassCode represents class code
 type ClassCode byte
+
+// PropertyCode represents property code
 type PropertyCode byte
 
 // EPCCode is EPC code
@@ -185,14 +193,17 @@ type EPCCode byte
 // PropertyDefs is a map EPCCode as key detail string as value
 type PropertyDefs map[EPCCode]string
 
+// definition of class group codes
 const (
 	AirConditioner ClassGroupCode = 0x01
 )
 
+// definition of class codes
 const (
 	HomeAirConditioner ClassCode = 0x30
 )
 
+// definition of property codes
 const (
 	MeasuredRoomTemperature    PropertyCode = 0xBB
 	MeasuredOutdoorTemperature PropertyCode = 0xBE
