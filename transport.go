@@ -42,11 +42,11 @@ func (r *UDPMulticastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 		address, err := net.ResolveUDPAddr("udp", r.IP+r.Port)
 		log.Println("resolved:", address)
 		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("Error: ", err)}
+			results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}
 		}
 		conn, err := net.ListenMulticastUDP("udp", nil, address)
 		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("Error: ", err)}
+			results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}
 		}
 		defer conn.Close()
 		buffer := make([]byte, 1500)
@@ -58,7 +58,7 @@ func (r *UDPMulticastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 			if err != nil {
 				err, ok := err.(net.Error)
 				if !ok || !err.Timeout() {
-					results <- ReceiveResult{Err: fmt.Errorf("Error: ", err)}
+					results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}
 				}
 			}
 			if length > 0 {
@@ -84,7 +84,7 @@ type UDPMulticastSender struct {
 func NewUDPMulticastSender(IP, Port string) (*UDPMulticastSender, error) {
 	conn, err := net.Dial("udp", IP+Port)
 	if err != nil {
-		return nil, fmt.Errorf("Write conn error:", err)
+		return nil, fmt.Errorf("Write conn error: [%s]", err)
 	}
 	return &UDPMulticastSender{conn: conn}, nil
 }
@@ -114,11 +114,11 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 		defer close(results)
 		udpAddr, err := net.ResolveUDPAddr("udp", r.IP+r.Port)
 		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: ", err)}
+			results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: [%s]", err)}
 		}
 		conn, err := net.ListenUDP("udp", udpAddr)
 		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: ", err)}
+			results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: [%s]", err)}
 		}
 		defer conn.Close()
 		buffer := make([]byte, 1500)

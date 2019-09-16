@@ -250,7 +250,41 @@ func createGetFrame() *Frame {
 func createAirconGetFrame() *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0x80, 0x00, 0x9f, 0x00}
-	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00}
+	data := []byte{}
+
+	ehd1 := []byte{0x10}
+	ehd2 := []byte{0x81}
+	tid := []byte{0x0, 0x0}
+
+	edata := []byte{}
+	seoj := []byte{0x05, 0xff, 0x01}
+	deoj := []byte{0x01, 0x30, 0x01}
+	esv := []byte{0x62}
+
+	properties := []struct {
+		epc []byte
+		edt []byte
+	}{
+		{epc: []byte{0xbb}, edt: []byte{}},
+		{epc: []byte{0xbe}, edt: []byte{}},
+	}
+
+	edata = append(edata, seoj...)
+	edata = append(edata, deoj...)
+	edata = append(edata, esv...)
+
+	opc := byte(len(properties))
+	edata = append(edata, opc)
+
+	for _, p := range properties {
+		edata = append(edata, p.epc...)
+		edata = append(edata, byte(len(p.edt)))
+		edata = append(edata, p.edt...)
+	}
+
+	data = append(data, ehd1...)
+	data = append(data, ehd2...)
+	data = append(data, tid...)
 
 	frame, err := ParseFrame(data)
 	if err != nil {
