@@ -65,11 +65,12 @@ type PropertyInfo struct {
 // instance: 01
 // EPC 0x80
 // property: 80
-func Load() ClassInfoMap {
+func Load() (ClassInfoMap, error) {
 	path := "../../SonyCSL/ECHONETLite-ObjectDatabase/data/csv/ja"
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		log.Fatal(err)
+		return nil, err
 	}
 
 	classMap := make(ClassInfoMap)
@@ -122,7 +123,7 @@ func Load() ClassInfoMap {
 	log.Println(cls)
 	classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 
-	return classMap
+	return classMap, nil
 }
 
 func classCode(file os.FileInfo) []byte {

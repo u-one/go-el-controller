@@ -50,7 +50,11 @@ var exporterAddr = flag.String("listen-address", ":8083", "The address to listen
 func main() {
 	flag.Parse()
 
-	ClassInfoMap = class.Load()
+	var err error
+	ClassInfoMap, err = class.Load()
+	if err != nil {
+		log.Println(err)
+	}
 
 	start()
 

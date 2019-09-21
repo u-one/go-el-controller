@@ -21,7 +21,7 @@ var (
 			Help:      "aircon temp",
 		},
 		[]string{
-			"ip", "type",
+			"ip", "type", "location",
 		},
 	)
 )
@@ -31,6 +31,7 @@ func init() {
 
 }
 
+// ELController is ECHONETLite controller
 type ELController struct {
 	MulticastReceiver MulticastReceiver
 	MulticastSender   MulticastSender
@@ -38,22 +39,22 @@ type ELController struct {
 	Server            *http.ServeMux
 }
 
+// Start starts controller
 func (elc ELController) Start(ctx context.Context) {
 	var wg sync.WaitGroup
-
 	wg.Add(1)
-	elc.readMulticast(ctx, wg)
+	elc.readMulticast(ctx, &wg)
 
 	//wg.Add(1)
 	//elc.readUnicast(ctx, wg)
 
 	wg.Add(1)
-	elc.sendLoop(ctx, wg)
+	elc.sendLoop(ctx, &wg)
 	//f = createAirconGetFrame()
 	//sendFrame(conn, f)
 
 	wg.Add(1)
-	elc.startExporter(ctx, wg)
+	elc.startExporter(ctx, &wg)
 
 	log.Println("wait for read done")
 	wg.Wait()
@@ -61,7 +62,7 @@ func (elc ELController) Start(ctx context.Context) {
 
 }
 
-func (elc ELController) readMulticast(ctx context.Context, wg sync.WaitGroup) {
+func (elc ELController) readMulticast(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 
@@ -70,74 +71,45 @@ func (elc ELController) readMulticast(ctx context.Context, wg sync.WaitGroup) {
 		handler := func(results <-chan ReceiveResult) {
 			for result := range results {
 				if result.Err != nil {
-					log.Println(result.Err)
+					log.Printf("[Error] failed to receive [%s]", result.Err)
 					continue
 				}
+				log.Println("<<<<<<<< received")
 				frame, err := ParseFrame(result.Data)
 				if err != nil {
-					log.Println(err)
+					log.Printf("[Error] parse failed [%s]", err)
 					continue
 				}
 				log.Printf("[%v] %v\n", result.Address, frame)
-				err = elc.frameReceived(result.Address, frame)
-				if err != nil {
-					log.Println(err)
+
+				switch obj := frame.Object.(type) {
+				case AirconObject:
+					lc := obj.InstallLocation.Code
+					ln := obj.InstallLocation.Number
+					loc := lc.String()
+					if ln != 0 {
+						loc = fmt.Sprintf("%s%d", lc, ln)
+					}
+					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
+					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
+				default:
 				}
+
 			}
 		}
-
 		handler(ch)
 	}()
 }
 
-func (elc ELController) readUnicast(ctx context.Context, wg sync.WaitGroup) {
+func (elc ELController) readUnicast(ctx context.Context, wg *sync.WaitGroup) {
 }
 
-func (elc ELController) frameReceived(addr string, f Frame) error {
-	//sObjInfo := ClassInfoMap.Get(f.SrcClassCode)
-	classCode := f.SrcClassCode()
-	log.Println("frameReceived:", classCode)
-	f.Print()
-
-	switch ClassGroupCode(classCode.ClassGroupCode) {
-	case AirConditioner:
-		switch ClassCode(classCode.ClassCode) {
-		case HomeAirConditioner:
-			log.Println("エアコン")
-			for _, p := range f.Properties {
-				log.Println(p.Code)
-				switch PropertyCode(p.Code) {
-				case MeasuredRoomTemperature:
-					if p.Len != 1 {
-						return fmt.Errorf("invalid length: %d", p.Len)
-					}
-					temp := int(p.Data[0])
-					log.Printf("室温:%d℃\n", temp)
-					tempMetrics.With(prometheus.Labels{"ip": addr, "type": "room"}).Set(float64(temp))
-					break
-				case MeasuredOutdoorTemperature:
-					if p.Len != 1 {
-						return fmt.Errorf("invalid length: %d", p.Len)
-					}
-					temp := int(p.Data[0])
-					log.Printf("外気温:%d℃\n", temp)
-					tempMetrics.With(prometheus.Labels{"ip": addr, "type": "outside"}).Set(float64(temp))
-					break
-				}
-			}
-			break
-		}
-		break
-	}
-	return nil
-}
-
-func (elc ELController) sendLoop(ctx context.Context, wg sync.WaitGroup) {
+func (elc ELController) sendLoop(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 
 		sendFrame := func(f *Frame) {
-			log.Println("sendFrame")
+			log.Println(">>>>>>>> sendFrame")
 			f.Print()
 			elc.MulticastSender.Send([]byte(f.Data))
 		}
@@ -156,6 +128,7 @@ func (elc ELController) sendLoop(ctx context.Context, wg sync.WaitGroup) {
 		time.Sleep(time.Second * 3)
 
 		t := time.NewTicker(30 * time.Second)
+		defer t.Stop()
 		f = createAirconGetFrame()
 		sendFrame(f)
 
@@ -170,11 +143,10 @@ func (elc ELController) sendLoop(ctx context.Context, wg sync.WaitGroup) {
 				return
 			}
 		}
-		t.Stop()
 	}()
 }
 
-func (elc ELController) startExporter(ctx context.Context, wg sync.WaitGroup) {
+func (elc ELController) startExporter(ctx context.Context, wg *sync.WaitGroup) {
 
 	ch := make(chan error)
 	go func() {
