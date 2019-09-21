@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -62,7 +61,6 @@ func TestParseFrame(t *testing.T) {
 
 	str := "1081000001300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"
 	data, err := hex.DecodeString(str)
-	fmt.Printf("data: %#v", data)
 	if err != nil {
 		t.Error(err)
 	}

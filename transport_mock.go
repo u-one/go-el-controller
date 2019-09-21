@@ -81,3 +81,40 @@ func (mr *MockMulticastSenderMockRecorder) Send(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockMulticastSender)(nil).Send), data)
 }
+
+// MockUnicastReceiver is a mock of UnicastReceiver interface
+type MockUnicastReceiver struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnicastReceiverMockRecorder
+}
+
+// MockUnicastReceiverMockRecorder is the mock recorder for MockUnicastReceiver
+type MockUnicastReceiverMockRecorder struct {
+	mock *MockUnicastReceiver
+}
+
+// NewMockUnicastReceiver creates a new mock instance
+func NewMockUnicastReceiver(ctrl *gomock.Controller) *MockUnicastReceiver {
+	mock := &MockUnicastReceiver{ctrl: ctrl}
+	mock.recorder = &MockUnicastReceiverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockUnicastReceiver) EXPECT() *MockUnicastReceiverMockRecorder {
+	return m.recorder
+}
+
+// Start mocks base method
+func (m *MockUnicastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start", ctx)
+	ret0, _ := ret[0].(<-chan ReceiveResult)
+	return ret0
+}
+
+// Start indicates an expected call of Start
+func (mr *MockUnicastReceiverMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockUnicastReceiver)(nil).Start), ctx)
+}

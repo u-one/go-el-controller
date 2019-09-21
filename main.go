@@ -43,6 +43,10 @@ func start() {
 
 	elc.Start(ctx)
 
+	select {
+	case <-ctx.Done():
+		log.Println("finished")
+	}
 }
 
 var exporterAddr = flag.String("listen-address", ":8083", "The address to listen on for HTTP requests.")
