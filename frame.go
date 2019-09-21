@@ -34,6 +34,7 @@ type Frame struct {
 	ESV        ESVType // Echonet Lite Service
 	OPC        Data    // Num of Properties
 	Properties []Property
+	Object     interface{}
 }
 
 // ParseFrame returns Frame
@@ -66,7 +67,155 @@ func ParseFrame(data []byte) (Frame, error) {
 		epcOffset += (2 + propertyValueLen)
 	}
 
-	return Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}, nil
+	f := Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}
+	err := f.parseFrame()
+	return f, err
+}
+
+// SuperObject is super object
+type SuperObject struct {
+	InstallLocation Location
+}
+
+// LocationCode represents location code
+type LocationCode int32
+
+// Location represents location
+type Location struct {
+	Code   LocationCode
+	Number int32
+}
+
+// LocationCodes
+const (
+	Living LocationCode = iota + 1
+	Dining
+	Kitchen
+	Bathroom
+	Lavatory
+	Washroom
+	Corridor
+	Room
+	Stairs
+	Entrance
+	Closet
+	Garden
+	Garage
+	Balcony
+	Other
+)
+
+func (l LocationCode) String() string {
+	switch l {
+	case Living:
+		return "Living"
+	case Dining:
+		return "Dining"
+	case Kitchen:
+		return "Kitchen"
+	case Bathroom:
+		return "Bathroom"
+	case Lavatory:
+		return "Lavatory"
+	case Corridor:
+		return "Corridor"
+	case Room:
+		return "Room"
+	case Stairs:
+		return "Stairs"
+	case Entrance:
+		return "Entrance"
+	case Closet:
+		return "Closet"
+	case Garden:
+		return "Garden"
+	case Garage:
+		return "Garage"
+	case Balcony:
+		return "Balcony"
+	case Other:
+		return "Other"
+	default:
+		return "unknown"
+	}
+}
+
+// AirconObject is object for aircon
+type AirconObject struct {
+	SuperObject
+	InternalTemp float64
+	OuterTemp    float64
+}
+
+func (f *Frame) parseFrame() error {
+	classCode := f.SrcClassCode()
+	log.Println("frameReceived:", classCode)
+	f.Print()
+
+	switch ClassGroupCode(classCode.ClassGroupCode) {
+	case AirConditioner:
+		switch ClassCode(classCode.ClassCode) {
+		case HomeAirConditioner:
+			log.Println("エアコン")
+			obj := AirconObject{}
+			for _, p := range f.Properties {
+				log.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
+				switch PropertyCode(p.Code) {
+				case OperationStatus:
+				case InstallationLocation:
+					if p.Len != 1 {
+						return fmt.Errorf("InstallationLocation invalid length: %d", p.Len)
+					}
+					var d byte = p.Data[0]
+					log.Printf("%08b\n", d)
+					if d>>7 == 1 {
+						// free definition
+						log.Println("free definition")
+						break
+					}
+					locationCode := (d >> 3) & 0x0F
+					locationNo := d & 0x07
+					obj.InstallLocation = Location{Code: LocationCode(locationCode), Number: int32(locationNo)}
+					fmt.Printf("locationCode: %0b locationNo: %0b\n", locationCode, locationNo)
+				case ID:
+					if p.Len == 0 {
+						return fmt.Errorf("ID invalid length: %d", p.Len)
+					}
+					lowerCommunicationLayerID := p.Data[0]
+					switch {
+					case 0x00 == lowerCommunicationLayerID:
+					case 0xFE > lowerCommunicationLayerID:
+					case 0xFE == lowerCommunicationLayerID:
+						manufacturerCode := p.Data[1:4]
+						manufacturerID := p.Data[4:]
+						fmt.Printf("メーカコード: %#v メーカID: %#v\n", manufacturerCode, manufacturerID)
+					case 0xFF == lowerCommunicationLayerID:
+					}
+				case MeasuredRoomTemperature:
+					if p.Len != 1 {
+						return fmt.Errorf("MeasuredRoomTemperature invalid length: %d", p.Len)
+					}
+					temp := int(p.Data[0])
+					obj.InternalTemp = float64(temp)
+					log.Printf("室温:%d℃\n", temp)
+					break
+				case MeasuredOutdoorTemperature:
+					if p.Len != 1 {
+						return fmt.Errorf("MeasuredOutdoorTemperature invalid length: %d", p.Len)
+					}
+					temp := int(p.Data[0])
+					obj.OuterTemp = float64(temp)
+					log.Printf("外気温:%d℃\n", temp)
+					break
+				}
+			}
+			f.Object = obj
+			break
+		}
+		break
+	}
+	return nil
+
 }
 
 // SrcClassCode returns src class code
@@ -205,6 +354,11 @@ const (
 
 // definition of property codes
 const (
+	OperationStatus      PropertyCode = 0x80
+	InstallationLocation PropertyCode = 0x81
+	StandardVersion      PropertyCode = 0x82
+	ID                   PropertyCode = 0x83
+
 	MeasuredRoomTemperature    PropertyCode = 0xBB
 	MeasuredOutdoorTemperature PropertyCode = 0xBE
 )
@@ -249,14 +403,14 @@ func createGetFrame() *Frame {
 
 func createAirconGetFrame() *Frame {
 	// Get
-	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0x80, 0x00, 0x9f, 0x00}
-	data := []byte{}
+	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
+	data := make([]byte, 0)
 
 	ehd1 := []byte{0x10}
 	ehd2 := []byte{0x81}
 	tid := []byte{0x0, 0x0}
 
-	edata := []byte{}
+	edata := make([]byte, 0)
 	seoj := []byte{0x05, 0xff, 0x01}
 	deoj := []byte{0x01, 0x30, 0x01}
 	esv := []byte{0x62}
@@ -265,6 +419,8 @@ func createAirconGetFrame() *Frame {
 		epc []byte
 		edt []byte
 	}{
+		{epc: []byte{0x81}, edt: []byte{}},
+		{epc: []byte{0x83}, edt: []byte{}},
 		{epc: []byte{0xbb}, edt: []byte{}},
 		{epc: []byte{0xbe}, edt: []byte{}},
 	}
@@ -285,6 +441,7 @@ func createAirconGetFrame() *Frame {
 	data = append(data, ehd1...)
 	data = append(data, ehd2...)
 	data = append(data, tid...)
+	data = append(data, edata...)
 
 	frame, err := ParseFrame(data)
 	if err != nil {
