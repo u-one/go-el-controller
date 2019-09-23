@@ -26,12 +26,9 @@ func start() {
 	defer ms.Close()
 
 	elc := ELController{
-		MulticastReceiver: &transport.UDPMulticastReceiver{
-			IP:   MulticastIP,
-			Port: Port,
-		},
-		MulticastSender: ms,
-		ExporterAddr:    *exporterAddr,
+		MulticastReceiver: &transport.UDPMulticastReceiver{},
+		MulticastSender:   ms,
+		ExporterAddr:      *exporterAddr,
 	}
 
 	elc.Start(ctx)
