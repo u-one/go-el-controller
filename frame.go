@@ -3,10 +3,19 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/u-one/go-el-controller/class"
 )
+
+var logger *log.Logger
+
+func init() {
+	//logger = log.New(os.Stdout, "[Frame]", log.LstdFlags)
+	logger = log.New(ioutil.Discard, "[Frame]", log.LstdFlags)
+
+}
 
 // Data represents binary data
 type Data []byte
@@ -149,17 +158,17 @@ type AirconObject struct {
 
 func (f *Frame) parseFrame() error {
 	classCode := f.SrcClassCode()
-	log.Println("frameReceived:", classCode)
+	logger.Println("frameReceived:", classCode)
 	f.Print()
 
 	switch ClassGroupCode(classCode.ClassGroupCode) {
 	case AirConditioner:
 		switch ClassCode(classCode.ClassCode) {
 		case HomeAirConditioner:
-			log.Println("エアコン")
+			logger.Println("エアコン")
 			obj := AirconObject{}
 			for _, p := range f.Properties {
-				log.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
+				logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
 				switch PropertyCode(p.Code) {
 				case OperationStatus:
 				case InstallationLocation:
@@ -167,16 +176,16 @@ func (f *Frame) parseFrame() error {
 						return fmt.Errorf("InstallationLocation invalid length: %d", p.Len)
 					}
 					var d byte = p.Data[0]
-					log.Printf("%08b\n", d)
+					logger.Printf("%08b\n", d)
 					if d>>7 == 1 {
 						// free definition
-						log.Println("free definition")
+						logger.Println("free definition")
 						break
 					}
 					locationCode := (d >> 3) & 0x0F
 					locationNo := d & 0x07
 					obj.InstallLocation = Location{Code: LocationCode(locationCode), Number: int32(locationNo)}
-					fmt.Printf("locationCode: %0b locationNo: %0b\n", locationCode, locationNo)
+					logger.Printf("locationCode: %0b locationNo: %0b\n", locationCode, locationNo)
 				case ID:
 					if p.Len == 0 {
 						return fmt.Errorf("ID invalid length: %d", p.Len)
@@ -188,7 +197,7 @@ func (f *Frame) parseFrame() error {
 					case 0xFE == lowerCommunicationLayerID:
 						manufacturerCode := p.Data[1:4]
 						manufacturerID := p.Data[4:]
-						fmt.Printf("メーカコード: %#v メーカID: %#v\n", manufacturerCode, manufacturerID)
+						logger.Printf("メーカコード: %#v メーカID: %#v\n", manufacturerCode, manufacturerID)
 					case 0xFF == lowerCommunicationLayerID:
 					}
 				case MeasuredRoomTemperature:
@@ -197,7 +206,7 @@ func (f *Frame) parseFrame() error {
 					}
 					temp := int(p.Data[0])
 					obj.InternalTemp = float64(temp)
-					log.Printf("室温:%d℃\n", temp)
+					logger.Printf("室温:%d℃\n", temp)
 					break
 				case MeasuredOutdoorTemperature:
 					if p.Len != 1 {
@@ -205,7 +214,7 @@ func (f *Frame) parseFrame() error {
 					}
 					temp := int(p.Data[0])
 					obj.OuterTemp = float64(temp)
-					log.Printf("外気温:%d℃\n", temp)
+					logger.Printf("外気温:%d℃\n", temp)
 					break
 				}
 			}
@@ -233,15 +242,15 @@ func (f Frame) Print() {
 	sObjInfo := ClassInfoMap.Get(f.SrcClassCode())
 	dObjInfo := ClassInfoMap.Get(f.DstClassCode())
 
-	log.Println("============ Frame ============")
-	log.Println(" ", f.Data)
-	log.Println("  -----------------------------")
-	log.Println("  EHD:", f.EHD)
-	log.Println("  TID:", f.TID)
-	log.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
-	log.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
-	log.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
-	log.Println("  OPC:", f.OPC, " (Num of properties)")
+	logger.Println("============ Frame ============")
+	logger.Println(" ", f.Data)
+	logger.Println("  -----------------------------")
+	logger.Println("  EHD:", f.EHD)
+	logger.Println("  TID:", f.TID)
+	logger.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
+	logger.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
+	logger.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
+	logger.Println("  OPC:", f.OPC, " (Num of properties)")
 
 	for i, p := range f.Properties {
 		desc := ""
@@ -252,11 +261,11 @@ func (f Frame) Print() {
 			}
 		}
 
-		log.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
-		log.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
-		log.Printf("  EDT%d: %s (Property data)", i, p.Data)
+		logger.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
+		logger.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
+		logger.Printf("  EDT%d: %s (Property data)", i, p.Data)
 	}
-	log.Println("===============================")
+	logger.Println("===============================")
 }
 
 // ESVType represnts type of ESV
@@ -369,10 +378,10 @@ func createInfFrame() *Frame {
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
-		log.Print("Error:", err)
+		logger.Print("Error:", err)
 		return nil
 	}
-	log.Print(frame)
+	logger.Print(frame)
 	return &frame
 }
 
@@ -381,10 +390,10 @@ func createInfReqFrame() *Frame {
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
-		log.Print("Error:", err)
+		logger.Print("Error:", err)
 		return nil
 	}
-	log.Print(frame)
+	logger.Print(frame)
 	return &frame
 }
 
@@ -394,10 +403,10 @@ func createGetFrame() *Frame {
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
-		log.Print("Error:", err)
+		logger.Print("Error:", err)
 		return nil
 	}
-	log.Print(frame)
+	logger.Print(frame)
 	return &frame
 }
 
@@ -445,9 +454,9 @@ func createAirconGetFrame() *Frame {
 
 	frame, err := ParseFrame(data)
 	if err != nil {
-		log.Print("Error:", err)
+		logger.Print("Error:", err)
 		return nil
 	}
-	log.Print(frame)
+	logger.Print(frame)
 	return &frame
 }

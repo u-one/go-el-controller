@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var clogger *log.Logger
+
+func init() {
+	clogger = log.New(os.Stdout, "[Controller]", log.LstdFlags)
+}
 
 var (
 	tempMetrics = prometheus.NewGaugeVec(
@@ -41,75 +47,74 @@ type ELController struct {
 
 // Start starts controller
 func (elc ELController) Start(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	elc.readMulticast(ctx, &wg)
+	elc.readMulticast(ctx)
 
 	//wg.Add(1)
 	//elc.readUnicast(ctx, wg)
 
-	wg.Add(1)
-	elc.sendLoop(ctx, &wg)
+	elc.sendLoop(ctx)
 	//f = createAirconGetFrame()
 	//sendFrame(conn, f)
 
-	wg.Add(1)
-	elc.startExporter(ctx, &wg)
+	elc.startExporter(ctx)
 
-	log.Println("wait for read done")
-	wg.Wait()
-	log.Println("finish ")
+	//clogger.Println("wait for read done")
+	//wg.Wait()
+	//clogger.Println("finish ")
 
 }
 
-func (elc ELController) readMulticast(ctx context.Context, wg *sync.WaitGroup) {
+func (elc ELController) readMulticast(ctx context.Context) {
 	go func() {
-		defer wg.Done()
 
 		ch := elc.MulticastReceiver.Start(ctx)
 
 		handler := func(results <-chan ReceiveResult) {
-			for result := range results {
-				if result.Err != nil {
-					log.Printf("[Error] failed to receive [%s]", result.Err)
-					continue
-				}
-				log.Println("<<<<<<<< received")
-				frame, err := ParseFrame(result.Data)
-				if err != nil {
-					log.Printf("[Error] parse failed [%s]", err)
-					continue
-				}
-				log.Printf("[%v] %v\n", result.Address, frame)
-
-				switch obj := frame.Object.(type) {
-				case AirconObject:
-					lc := obj.InstallLocation.Code
-					ln := obj.InstallLocation.Number
-					loc := lc.String()
-					if ln != 0 {
-						loc = fmt.Sprintf("%s%d", lc, ln)
+			for {
+				select {
+				case <-ctx.Done():
+					clogger.Println("readMulticast handler ctx.Done")
+					return
+				case result := <-results:
+					if result.Err != nil {
+						clogger.Printf("[Error] failed to receive [%s]", result.Err)
+						break
 					}
-					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
-					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
-				default:
-				}
+					clogger.Println("<<<<<<<< received")
+					frame, err := ParseFrame(result.Data)
+					if err != nil {
+						clogger.Printf("[Error] parse failed [%s]", err)
+						break
+					}
+					clogger.Printf("[%v] %v\n", result.Address, frame)
 
+					switch obj := frame.Object.(type) {
+					case AirconObject:
+						lc := obj.InstallLocation.Code
+						ln := obj.InstallLocation.Number
+						loc := lc.String()
+						if ln != 0 {
+							loc = fmt.Sprintf("%s%d", lc, ln)
+						}
+						tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
+						tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
+					default:
+					}
+				}
 			}
 		}
 		handler(ch)
 	}()
 }
 
-func (elc ELController) readUnicast(ctx context.Context, wg *sync.WaitGroup) {
+func (elc ELController) readUnicast(ctx context.Context) {
 }
 
-func (elc ELController) sendLoop(ctx context.Context, wg *sync.WaitGroup) {
+func (elc ELController) sendLoop(ctx context.Context) {
 	go func() {
-		defer wg.Done()
 
 		sendFrame := func(f *Frame) {
-			log.Println(">>>>>>>> sendFrame")
+			clogger.Println(">>>>>>>> sendFrame")
 			f.Print()
 			elc.MulticastSender.Send([]byte(f.Data))
 		}
@@ -132,7 +137,7 @@ func (elc ELController) sendLoop(ctx context.Context, wg *sync.WaitGroup) {
 		f = createAirconGetFrame()
 		sendFrame(f)
 
-		log.Println("start sendLoop")
+		clogger.Println("start sendLoop")
 
 		for {
 			select {
@@ -146,20 +151,19 @@ func (elc ELController) sendLoop(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 }
 
-func (elc ELController) startExporter(ctx context.Context, wg *sync.WaitGroup) {
+func (elc ELController) startExporter(ctx context.Context) {
 
 	ch := make(chan error)
 	go func() {
 		defer close(ch)
 		elc.Server = http.NewServeMux()
 		elc.Server.Handle("/metrics", promhttp.Handler())
-		defer wg.Done()
-		log.Println("startExporter: ", elc.ExporterAddr)
+		clogger.Println("startExporter: ", elc.ExporterAddr)
 		http.Handle("/metrics", promhttp.Handler())
 		select {
 		case ch <- http.ListenAndServe(elc.ExporterAddr, elc.Server):
 		case <-ctx.Done():
 		}
-		log.Println("exporter finished")
+		clogger.Println("exporter finished")
 	}()
 }

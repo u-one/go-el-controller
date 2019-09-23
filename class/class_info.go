@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+var logger *log.Logger
+
+func init() {
+	//logger = log.New(os.Stdout, "[ClassInfo]", log.LstdFlags)
+	logger = log.New(ioutil.Discard, "[ClassInfo]", log.LstdFlags)
+}
+
 type ClassInfoMap map[ClassCode]*ClassInfo
 
 func (cim ClassInfoMap) Get(code ClassCode) *ClassInfo {
@@ -32,7 +39,7 @@ type ClassCode struct {
 
 // NewClassCode returns new instance of ClassCode
 func NewClassCode(classGroupCode, classCode byte) ClassCode {
-	log.Println("NewClassCode ClassGroup code:", classGroupCode, " Class code:", classCode)
+	logger.Println("NewClassCode ClassGroup code:", classGroupCode, " Class code:", classCode)
 	return ClassCode{
 		ClassGroupCode: classGroupCode,
 		ClassCode:      classCode,
@@ -69,7 +76,7 @@ func Load() (ClassInfoMap, error) {
 	path := "../../SonyCSL/ECHONETLite-ObjectDatabase/data/csv/ja"
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 		return nil, err
 	}
 
@@ -80,10 +87,10 @@ func Load() (ClassInfoMap, error) {
 		if codes == nil {
 			continue
 		}
-		log.Println("Decoded class code", codes)
+		logger.Println("Decoded class code", codes)
 
-		log.Println(file)
-		log.Println(path, file.Name())
+		logger.Println(file)
+		logger.Println(path, file.Name())
 
 		properties := loadFromFile(path + "/" + file.Name())
 		if properties != nil {
@@ -110,7 +117,7 @@ func Load() (ClassInfoMap, error) {
 			Properties:     properties,
 			Desc:           "ノードプロファイル",
 		}
-		log.Println(cls)
+		logger.Println(cls)
 		classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 	}
 
@@ -120,7 +127,7 @@ func Load() (ClassInfoMap, error) {
 		Properties:     make(map[PropertyCode]*PropertyInfo, 0),
 		Desc:           "コントローラ",
 	}
-	log.Println(cls)
+	logger.Println(cls)
 	classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
 
 	return classMap, nil
@@ -130,16 +137,16 @@ func classCode(file os.FileInfo) []byte {
 	name := strings.Split(file.Name(), ".")[0]
 
 	if !strings.HasPrefix(name, "0x") {
-		log.Println("Not property file: ", name)
+		logger.Println("Not property file: ", name)
 		return nil
 	}
 
 	decodedClassCodes, err := hex.DecodeString(strings.TrimPrefix(name, "0x"))
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 		return nil
 	}
-	log.Println(decodedClassCodes)
+	logger.Println(decodedClassCodes)
 	return decodedClassCodes
 }
 
@@ -150,7 +157,7 @@ func loadFromFile(filePath string) map[PropertyCode]*PropertyInfo {
 	f, err := os.Open(filePath)
 	defer f.Close()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 		return nil
 	}
 	var epcBegan = false
@@ -162,7 +169,7 @@ func loadFromFile(filePath string) map[PropertyCode]*PropertyInfo {
 			break
 		}
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 			continue
 		}
 		if record[0] == "EPC" {
@@ -172,7 +179,7 @@ func loadFromFile(filePath string) map[PropertyCode]*PropertyInfo {
 		if !epcBegan {
 			continue
 		}
-		log.Println(record[0])
+		logger.Println(record[0])
 		if !strings.HasPrefix(record[0], "0x") {
 			continue
 		}
@@ -181,7 +188,7 @@ func loadFromFile(filePath string) map[PropertyCode]*PropertyInfo {
 		}
 		d, err := hex.DecodeString(strings.TrimPrefix(record[0], "0x"))
 		if err != nil {
-			log.Println("failed to decode:", record[0])
+			logger.Println("failed to decode:", record[0])
 			continue
 		}
 
