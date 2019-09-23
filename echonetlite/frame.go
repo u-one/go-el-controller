@@ -23,6 +23,17 @@ func (d Data) String() string {
 	return hex.EncodeToString(d)
 }
 
+// EHD1
+const (
+	EchonetLite byte = 0x10
+)
+
+// EHD2
+const (
+	FixedFormat     byte = 0x81
+	ArbitraryFormat byte = 0x82
+)
+
 // Property represents Echonet-Lite property
 type Property struct {
 	Code byte
@@ -156,11 +167,10 @@ type AirconObject struct {
 
 func (f *Frame) parseFrame() error {
 	class := f.SrcClass()
-	logger.Println("frameReceived:", class)
-	f.Print()
+	//logger.Println("frameReceived:", class)
 
 	switch ClassGroupCode(class.ClassGroupCode) {
-	case AirConditioner:
+	case AirConditionerGroup:
 		switch ClassCode(class.ClassCode) {
 		case HomeAirConditioner:
 			logger.Println("エアコン")
@@ -235,21 +245,12 @@ func (f Frame) DstClass() Class {
 	return NewClass(f.DEOJ[0], f.DEOJ[1])
 }
 
-// Print prints frame detail
-func (f Frame) Print() {
+// String returns string
+func (f Frame) String() string {
 	sObjInfo := ClassInfoDB.Get(f.SrcClass())
 	dObjInfo := ClassInfoDB.Get(f.DstClass())
 
-	logger.Println("============ Frame ============")
-	logger.Println(" ", f.Data)
-	logger.Println("  -----------------------------")
-	logger.Println("  EHD:", f.EHD)
-	logger.Println("  TID:", f.TID)
-	logger.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
-	logger.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
-	logger.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
-	logger.Println("  OPC:", f.OPC, " (Num of properties)")
-
+	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s](%s) DEOJ[%s](%s) ESV[%s] OPC[%s]", f.Data, f.EHD, f.TID, f.SEOJ, sObjInfo.Desc, f.DEOJ, dObjInfo.Desc, f.ESV, f.OPC)
 	for i, p := range f.Properties {
 		desc := ""
 		if sObjInfo != nil {
@@ -259,11 +260,46 @@ func (f Frame) Print() {
 			}
 		}
 
-		logger.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
-		logger.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
-		logger.Printf("  EDT%d: %s (Property data)", i, p.Data)
+		str = str + fmt.Sprintf(" EPC%d[%x](%s)", i, p.Code, desc)
+		str = str + fmt.Sprintf(" PDC%d[%d]", i, p.Len)
+		str = str + fmt.Sprintf(" EDT%d[%s]", i, p.Data)
 	}
-	logger.Println("===============================")
+	return str
+}
+
+// Print prints frame detail
+func (f Frame) Print() {
+	sObjInfo := ClassInfoDB.Get(f.SrcClass())
+	dObjInfo := ClassInfoDB.Get(f.DstClass())
+
+	if false {
+		logger.Println("============ Frame ============")
+		logger.Println(" ", f.Data)
+		logger.Println("  -----------------------------")
+		logger.Println("  EHD:", f.EHD)
+		logger.Println("  TID:", f.TID)
+		logger.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
+		logger.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
+		logger.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
+		logger.Println("  OPC:", f.OPC, " (Num of properties)")
+
+		for i, p := range f.Properties {
+			desc := ""
+			if sObjInfo != nil {
+				prop := sObjInfo.Properties[PropertyCode(p.Code)]
+				if prop != nil {
+					desc = prop.Detail
+				}
+			}
+
+			logger.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
+			logger.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
+			logger.Printf("  EDT%d: %s (Property data)", i, p.Data)
+		}
+		logger.Println("===============================")
+	} else {
+		logger.Println(f)
+	}
 }
 
 // ESVType represnts type of ESV
@@ -330,9 +366,11 @@ func (t ESVType) String() string {
 	}
 }
 
+/*
 func (f Frame) String() string {
 	return hex.EncodeToString(f.Data)
 }
+*/
 
 // ClassGroupCode represents class gruop code
 type ClassGroupCode byte
@@ -351,90 +389,129 @@ type PropertyDefs map[EPCCode]string
 
 // definition of class group codes
 const (
-	AirConditioner ClassGroupCode = 0x01
+	SensorGroup         ClassGroupCode = 0x00
+	AirConditionerGroup ClassGroupCode = 0x01
+	HomeEquipmentGroup  ClassGroupCode = 0x02
+	HomeApplianceGroup  ClassGroupCode = 0x03
+	HealthCareGroup     ClassGroupCode = 0x04
+	ControllerGroup     ClassGroupCode = 0x05
+	AVGroup             ClassGroupCode = 0x06
 )
 
-// definition of class codes
+// definition of class codes for AirConditionerGroup
 const (
 	HomeAirConditioner ClassCode = 0x30
 )
 
+// definition of class codes for HomeEquipmentGroup
+const (
+	LowVoltageSmartMeter ClassCode = 0x88
+)
+
+// definition of class codes for ControllerGroup
+const (
+	HandHeldDevice ClassCode = 0xFE
+	Controller     ClassCode = 0xFF
+)
+
 // definition of property codes
 const (
-	OperationStatus      PropertyCode = 0x80
-	InstallationLocation PropertyCode = 0x81
-	StandardVersion      PropertyCode = 0x82
-	ID                   PropertyCode = 0x83
+	OperationStatus                PropertyCode = 0x80 // 動作状態
+	InstallationLocation           PropertyCode = 0x81 // 設置場所
+	SpecVersion                    PropertyCode = 0x82 // 規格Version情報
+	ID                             PropertyCode = 0x83 // 識別番号
+	MomentaryPowerConsumption      PropertyCode = 0x84 // 瞬間消費電力計測値
+	IntegratingPowerConsumption    PropertyCode = 0x85 // 積算消費電力計測値
+	ManufacturerErrorCode          PropertyCode = 0x86 // メーカ異常コード
+	ElectricityCurrentLimit        PropertyCode = 0x87 // 電流制限設定
+	AbnormalState                  PropertyCode = 0x88 // 異常発生状態
+	AbnormalDetail                 PropertyCode = 0x89 // 異常発生内容
+	ManufacturerCode               PropertyCode = 0x8A
+	OfficePlaceCode                PropertyCode = 0x8B
+	ProductCode                    PropertyCode = 0x8C
+	ManufacturingNumber            PropertyCode = 0x8D
+	ManufacturingDate              PropertyCode = 0x8E
+	PowerReductionState            PropertyCode = 0x8F
+	RemoteControlState             PropertyCode = 0x93
+	CurrentTime                    PropertyCode = 0x97
+	CurrentDate                    PropertyCode = 0x98
+	PowerConsumptionLimit          PropertyCode = 0x99
+	IntegratingOperatingTime       PropertyCode = 0x9A
+	SetMPropertyMap                PropertyCode = 0x9B // SetMプロパティマップ
+	GetMPropertyMap                PropertyCode = 0x9C // GetMプロパティマップ
+	StageChangeAnnouncePropertyMap PropertyCode = 0x9D // 状変アナウンスプロパティマップ
+	SetPropertyMap                 PropertyCode = 0x9E // Setプロパティマップ
+	GetPropertyMap                 PropertyCode = 0x9F // Getプロパティマップ
 
 	MeasuredRoomTemperature    PropertyCode = 0xBB
 	MeasuredOutdoorTemperature PropertyCode = 0xBE
 )
 
 // CreateInfFrame creates INF frame
-func CreateInfFrame() *Frame {
+func CreateInfFrame(transid uint16) *Frame {
 	// INF
-	data := []byte{0x10, 0x81, 0x0, 0x0, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
+	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
 		logger.Print("Error:", err)
 		return nil
 	}
-	logger.Print(frame)
+	//logger.Print(frame)
 	return &frame
 }
 
 // CreateInfReqFrame creates INF_REQ frame
-func CreateInfReqFrame() *Frame {
+func CreateInfReqFrame(transid uint16) *Frame {
 	// INF_REQ
-	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
+	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
 		logger.Print("Error:", err)
 		return nil
 	}
-	logger.Print(frame)
+	//logger.Print(frame)
 	return &frame
 }
 
 // CreateGetFrame creates GET frame
-func CreateGetFrame() *Frame {
+func CreateGetFrame(transid uint16) *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
-	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
+	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
 		logger.Print("Error:", err)
 		return nil
 	}
-	logger.Print(frame)
+	//logger.Print(frame)
 	return &frame
 }
 
 // CreateAirconGetFrame creates GET air-con info frame
 // TODO: refactor
-func CreateAirconGetFrame() *Frame {
+func CreateAirconGetFrame(transid uint16) *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
 	data := make([]byte, 0)
 
-	ehd1 := []byte{0x10}
-	ehd2 := []byte{0x81}
-	tid := []byte{0x0, 0x0}
+	ehd1 := []byte{byte(EchonetLite)} // 10
+	ehd2 := []byte{byte(FixedFormat)} // 81
+	tid := []byte{byte(transid >> 8 & 0xFF), byte(transid & 0xFF)}
 
 	edata := make([]byte, 0)
-	seoj := []byte{0x05, 0xff, 0x01}
-	deoj := []byte{0x01, 0x30, 0x01}
-	esv := []byte{0x62}
+	seoj := []byte{byte(ControllerGroup), byte(Controller), 0x01}             // 05FF01
+	deoj := []byte{byte(AirConditionerGroup), byte(HomeAirConditioner), 0x01} // 013001
+	esv := []byte{byte(Get)}                                                  // 62
 
 	properties := []struct {
 		epc []byte
 		edt []byte
 	}{
-		{epc: []byte{0x81}, edt: []byte{}},
-		{epc: []byte{0x83}, edt: []byte{}},
-		{epc: []byte{0xbb}, edt: []byte{}},
-		{epc: []byte{0xbe}, edt: []byte{}},
+		{epc: []byte{byte(InstallationLocation)}, edt: []byte{}},       //0x81
+		{epc: []byte{byte(ID)}, edt: []byte{}},                         //0x83
+		{epc: []byte{byte(MeasuredRoomTemperature)}, edt: []byte{}},    // 0xBB
+		{epc: []byte{byte(MeasuredOutdoorTemperature)}, edt: []byte{}}, //0xBE
 	}
 
 	edata = append(edata, seoj...)
@@ -460,6 +537,6 @@ func CreateAirconGetFrame() *Frame {
 		logger.Print("Error:", err)
 		return nil
 	}
-	logger.Print(frame)
+	//logger.Print(frame)
 	return &frame
 }
