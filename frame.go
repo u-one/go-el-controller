@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/u-one/go-el-controller/class"
 )
@@ -12,8 +12,8 @@ import (
 var logger *log.Logger
 
 func init() {
-	//logger = log.New(os.Stdout, "[Frame]", log.LstdFlags)
-	logger = log.New(ioutil.Discard, "[Frame]", log.LstdFlags)
+	logger = log.New(os.Stdout, "[Frame]", log.LstdFlags)
+	//logger = log.New(ioutil.Discard, "[Frame]", log.LstdFlags)
 
 }
 
