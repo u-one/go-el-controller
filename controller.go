@@ -10,6 +10,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/u-one/go-el-controller/echonetlite"
+	"github.com/u-one/go-el-controller/transport"
 )
 
 var clogger *log.Logger
@@ -37,10 +39,17 @@ func init() {
 
 }
 
+const (
+	// MulticastIP is Echonet-Lite multicast address
+	MulticastIP = "224.0.23.0"
+	// Port is Echonet-Lite receive port
+	Port = ":3610"
+)
+
 // ELController is ECHONETLite controller
 type ELController struct {
-	MulticastReceiver MulticastReceiver
-	MulticastSender   MulticastSender
+	MulticastReceiver transport.MulticastReceiver
+	MulticastSender   transport.MulticastSender
 	ExporterAddr      string
 	Server            *http.ServeMux
 }
@@ -69,7 +78,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 
 		ch := elc.MulticastReceiver.Start(ctx)
 
-		handler := func(results <-chan ReceiveResult) {
+		handler := func(results <-chan transport.ReceiveResult) {
 			for {
 				select {
 				case <-ctx.Done():
@@ -81,7 +90,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 						break
 					}
 					clogger.Println("<<<<<<<< received")
-					frame, err := ParseFrame(result.Data)
+					frame, err := echonetlite.ParseFrame(result.Data)
 					if err != nil {
 						clogger.Printf("[Error] parse failed [%s]", err)
 						break
@@ -89,7 +98,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 					clogger.Printf("[%v] %v\n", result.Address, frame)
 
 					switch obj := frame.Object.(type) {
-					case AirconObject:
+					case echonetlite.AirconObject:
 						lc := obj.InstallLocation.Code
 						ln := obj.InstallLocation.Number
 						loc := lc.String()
@@ -113,28 +122,28 @@ func (elc ELController) readUnicast(ctx context.Context) {
 func (elc ELController) sendLoop(ctx context.Context) {
 	go func() {
 
-		sendFrame := func(f *Frame) {
+		sendFrame := func(f *echonetlite.Frame) {
 			clogger.Println(">>>>>>>> sendFrame")
 			f.Print()
 			elc.MulticastSender.Send([]byte(f.Data))
 		}
 
-		f := createInfFrame()
+		f := echonetlite.CreateInfFrame()
 		sendFrame(f)
 
 		// ver.1.0
-		f = createInfReqFrame()
+		f = echonetlite.CreateInfReqFrame()
 		sendFrame(f)
 
 		// ver.1.1
-		f = createGetFrame()
+		f = echonetlite.CreateGetFrame()
 		sendFrame(f)
 
 		time.Sleep(time.Second * 3)
 
 		t := time.NewTicker(30 * time.Second)
 		defer t.Stop()
-		f = createAirconGetFrame()
+		f = echonetlite.CreateAirconGetFrame()
 		sendFrame(f)
 
 		clogger.Println("start sendLoop")
@@ -142,7 +151,7 @@ func (elc ELController) sendLoop(ctx context.Context) {
 		for {
 			select {
 			case <-t.C:
-				f := createAirconGetFrame()
+				f := echonetlite.CreateAirconGetFrame()
 				sendFrame(f)
 			case <-ctx.Done():
 				return

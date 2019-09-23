@@ -2,12 +2,13 @@
 // Source: transport.go
 
 // Package main is a generated GoMock package.
-package main
+package transport
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockMulticastReceiver is a mock of MulticastReceiver interface

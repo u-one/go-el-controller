@@ -1,4 +1,4 @@
-package class
+package echonetlite
 
 import (
 	"encoding/csv"
@@ -10,42 +10,51 @@ import (
 	"strings"
 )
 
-var logger *log.Logger
+var clogger *log.Logger
 
 func init() {
-	//logger = log.New(os.Stdout, "[ClassInfo]", log.LstdFlags)
-	logger = log.New(ioutil.Discard, "[ClassInfo]", log.LstdFlags)
+	//clogger = log.New(os.Stdout, "[ClassInfo]", log.LstdFlags)
+	clogger = log.New(ioutil.Discard, "[ClassInfo]", log.LstdFlags)
 }
 
-type ClassInfoMap map[ClassCode]*ClassInfo
+var (
+	// ClassInfoDB is a map with Class as key and PropertyDefs as value
+	// TODO: refactor
+	ClassInfoDB ClassInfoMap
+)
 
-func (cim ClassInfoMap) Get(code ClassCode) *ClassInfo {
-	if cim[code] != nil {
-		return cim[code]
+// ClassInfoMap is Class keyed ClassInfo map
+type ClassInfoMap map[Class]*ClassInfo
+
+// Get returns ClassInfo from Class key
+func (cim ClassInfoMap) Get(c Class) *ClassInfo {
+	if cim[c] != nil {
+		return cim[c]
 	}
 	return &ClassInfo{
-		ClassGroupCode: code.ClassGroupCode,
-		ClassCode:      code.ClassCode,
+		ClassGroupCode: c.ClassGroupCode,
+		ClassCode:      c.ClassCode,
 		Properties:     make(map[PropertyCode]*PropertyInfo),
 		Desc:           "unknown",
 	}
 }
 
-// ClassCode is Echonet-Lite Class information
-type ClassCode struct {
+// Class is Echonet-Lite Class information
+type Class struct {
 	ClassGroupCode byte
 	ClassCode      byte // 0xF0
 }
 
-// NewClassCode returns new instance of ClassCode
-func NewClassCode(classGroupCode, classCode byte) ClassCode {
-	logger.Println("NewClassCode ClassGroup code:", classGroupCode, " Class code:", classCode)
-	return ClassCode{
+// NewClass returns new instance of Class
+func NewClass(classGroupCode, classCode byte) Class {
+	clogger.Println("NewClass ClassGroup code:", classGroupCode, " Class code:", classCode)
+	return Class{
 		ClassGroupCode: classGroupCode,
 		ClassCode:      classCode,
 	}
 }
 
+// ClassInfo is static information about Class
 type ClassInfo struct {
 	ClassGroupCode byte
 	ClassCode      byte
@@ -53,18 +62,19 @@ type ClassInfo struct {
 	Desc           string
 }
 
+// NewClassInfo creates ClassInfo instance
 func NewClassInfo() *ClassInfo {
 	c := ClassInfo{}
 	return &c
 }
 
-type PropertyCode byte
-
+// PropertyInfo is static information about property
 type PropertyInfo struct {
 	Code   PropertyCode
 	Detail string
 }
 
+// Load loads class information from files and creates ClassInfoMap
 // ex.
 // SEOJ 0x0ef001
 // class group code: 0e
@@ -100,7 +110,7 @@ func Load() (ClassInfoMap, error) {
 				Properties:     properties,
 				Desc:           "",
 			}
-			classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
+			classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
 		}
 	}
 
@@ -118,7 +128,7 @@ func Load() (ClassInfoMap, error) {
 			Desc:           "ノードプロファイル",
 		}
 		logger.Println(cls)
-		classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
+		classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
 	}
 
 	cls := ClassInfo{
@@ -128,7 +138,7 @@ func Load() (ClassInfoMap, error) {
 		Desc:           "コントローラ",
 	}
 	logger.Println(cls)
-	classMap[NewClassCode(cls.ClassGroupCode, cls.ClassCode)] = &cls
+	classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
 
 	return classMap, nil
 }

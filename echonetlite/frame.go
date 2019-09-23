@@ -1,12 +1,10 @@
-package main
+package echonetlite
 
 import (
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
-
-	"github.com/u-one/go-el-controller/class"
 )
 
 var logger *log.Logger
@@ -157,13 +155,13 @@ type AirconObject struct {
 }
 
 func (f *Frame) parseFrame() error {
-	classCode := f.SrcClassCode()
-	logger.Println("frameReceived:", classCode)
+	class := f.SrcClass()
+	logger.Println("frameReceived:", class)
 	f.Print()
 
-	switch ClassGroupCode(classCode.ClassGroupCode) {
+	switch ClassGroupCode(class.ClassGroupCode) {
 	case AirConditioner:
-		switch ClassCode(classCode.ClassCode) {
+		switch ClassCode(class.ClassCode) {
 		case HomeAirConditioner:
 			logger.Println("エアコン")
 			obj := AirconObject{}
@@ -227,20 +225,20 @@ func (f *Frame) parseFrame() error {
 
 }
 
-// SrcClassCode returns src class code
-func (f Frame) SrcClassCode() class.ClassCode {
-	return class.NewClassCode(f.SEOJ[0], f.SEOJ[1])
+// SrcClass returns src class
+func (f Frame) SrcClass() Class {
+	return NewClass(f.SEOJ[0], f.SEOJ[1])
 }
 
-// DstClassCode returns dst class code
-func (f Frame) DstClassCode() class.ClassCode {
-	return class.NewClassCode(f.DEOJ[0], f.DEOJ[1])
+// DstClass returns dst class
+func (f Frame) DstClass() Class {
+	return NewClass(f.DEOJ[0], f.DEOJ[1])
 }
 
 // Print prints frame detail
 func (f Frame) Print() {
-	sObjInfo := ClassInfoMap.Get(f.SrcClassCode())
-	dObjInfo := ClassInfoMap.Get(f.DstClassCode())
+	sObjInfo := ClassInfoDB.Get(f.SrcClass())
+	dObjInfo := ClassInfoDB.Get(f.DstClass())
 
 	logger.Println("============ Frame ============")
 	logger.Println(" ", f.Data)
@@ -255,7 +253,7 @@ func (f Frame) Print() {
 	for i, p := range f.Properties {
 		desc := ""
 		if sObjInfo != nil {
-			prop := sObjInfo.Properties[class.PropertyCode(p.Code)]
+			prop := sObjInfo.Properties[PropertyCode(p.Code)]
 			if prop != nil {
 				desc = prop.Detail
 			}
@@ -372,7 +370,8 @@ const (
 	MeasuredOutdoorTemperature PropertyCode = 0xBE
 )
 
-func createInfFrame() *Frame {
+// CreateInfFrame creates INF frame
+func CreateInfFrame() *Frame {
 	// INF
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
@@ -385,7 +384,8 @@ func createInfFrame() *Frame {
 	return &frame
 }
 
-func createInfReqFrame() *Frame {
+// CreateInfReqFrame creates INF_REQ frame
+func CreateInfReqFrame() *Frame {
 	// INF_REQ
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
@@ -397,7 +397,8 @@ func createInfReqFrame() *Frame {
 	return &frame
 }
 
-func createGetFrame() *Frame {
+// CreateGetFrame creates GET frame
+func CreateGetFrame() *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
 	data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
@@ -410,7 +411,9 @@ func createGetFrame() *Frame {
 	return &frame
 }
 
-func createAirconGetFrame() *Frame {
+// CreateAirconGetFrame creates GET air-con info frame
+// TODO: refactor
+func CreateAirconGetFrame() *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
 	data := make([]byte, 0)

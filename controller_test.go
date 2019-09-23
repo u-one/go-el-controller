@@ -7,6 +7,7 @@ import (
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
+	"github.com/u-one/go-el-controller/transport"
 )
 
 func TestController(t *testing.T) {
@@ -14,10 +15,10 @@ func TestController(t *testing.T) {
 
 	defer ctrl.Finish()
 
-	r := NewMockMulticastReceiver(ctrl)
-	s := NewMockMulticastSender(ctrl)
+	r := transport.NewMockMulticastReceiver(ctrl)
+	s := transport.NewMockMulticastSender(ctrl)
 
-	ch := make(chan ReceiveResult, 1)
+	ch := make(chan transport.ReceiveResult, 1)
 	defer close(ch)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,7 +74,7 @@ func TestController(t *testing.T) {
 		send := func(data []byte, addr string, delay time.Duration) {
 			timer := time.NewTimer(delay)
 			<-timer.C
-			rr := ReceiveResult{Data: data, Address: addr, Err: nil}
+			rr := transport.ReceiveResult{Data: data, Address: addr, Err: nil}
 			ch <- rr
 		}
 		airconResp := []byte{0x10, 0x81, 0x0, 0x0, 0x1, 0x30, 0x1, 0x5, 0xff, 0x1, 0x72, 0x4, 0x81, 0x1, 0x41, 0x83, 0x11, 0xfe, 0x0, 0x0, 0x8, 0x60, 0xf1, 0x89, 0x30, 0x6d, 0xf5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xbb, 0x01, 0x01, 0xbe, 0x1, 0x09}
