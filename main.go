@@ -5,18 +5,8 @@ import (
 	"flag"
 	"log"
 
-	"github.com/u-one/go-el-controller/class"
-)
-
-var (
-	// MulticastIP is Echonet-Lite multicast address
-	MulticastIP = "224.0.23.0"
-	// Port is Echonet-Lite receive port
-	Port = ":3610"
-)
-var (
-	// ClassInfoMap is a map with ClassCode as key and PropertyDefs as value
-	ClassInfoMap class.ClassInfoMap
+	"github.com/u-one/go-el-controller/echonetlite"
+	"github.com/u-one/go-el-controller/transport"
 )
 
 func start() {
@@ -25,7 +15,7 @@ func start() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ms, err := NewUDPMulticastSender(MulticastIP, Port)
+	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
 	if err != nil {
 		log.Println(err)
 		return
@@ -33,7 +23,7 @@ func start() {
 	defer ms.Close()
 
 	elc := ELController{
-		MulticastReceiver: &UDPMulticastReceiver{
+		MulticastReceiver: &transport.UDPMulticastReceiver{
 			IP:   MulticastIP,
 			Port: Port,
 		},
@@ -55,7 +45,8 @@ func main() {
 	flag.Parse()
 
 	var err error
-	ClassInfoMap, err = class.Load()
+	// TODO: refactor
+	echonetlite.ClassInfoDB, err = echonetlite.Load()
 	if err != nil {
 		log.Println(err)
 	}

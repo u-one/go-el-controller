@@ -1,4 +1,4 @@
-package main
+package transport
 
 //go:generate mockgen -source transport.go -destination transport_mock.go -package main
 
