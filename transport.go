@@ -60,10 +60,11 @@ func (r *UDPMulticastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 				if !ok || !err.Timeout() {
 					results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}
 				}
-			}
-			if length > 0 {
+			} else if length > 0 {
 				fmt.Println()
-				results <- ReceiveResult{Data: buffer[:length], Address: remoteAddress.IP.String(), Err: nil}
+				// Need copy because buffer will be cleared and reuse
+				data := append([]byte{}, buffer[:length]...)
+				results <- ReceiveResult{Data: data, Address: remoteAddress.IP.String(), Err: nil}
 			}
 			select {
 			case <-ctx.Done():
@@ -71,6 +72,10 @@ func (r *UDPMulticastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 				return
 			default:
 				//log.Println("recv: ", length)
+			}
+
+			for i := range buffer {
+				buffer[i] = 0
 			}
 		}
 	}()
@@ -128,10 +133,11 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 			length, remoteAddress, err := conn.ReadFrom(buffer)
 			if err != nil {
 				log.Println("Unicast Error:", err)
-			}
-			if length > 0 {
+			} else if length > 0 {
 				fmt.Println()
-				results <- ReceiveResult{Data: buffer[:length], Address: remoteAddress.String(), Err: nil}
+				// Need copy because buffer will be cleared and reuse
+				data := append([]byte{}, buffer[:length]...)
+				results <- ReceiveResult{Data: data, Address: remoteAddress.String(), Err: nil}
 			}
 
 			select {
@@ -139,6 +145,10 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context) <-chan ReceiveResult {
 				log.Println("ctx.Done")
 				return
 			default:
+			}
+
+			for i := range buffer {
+				buffer[i] = 0
 			}
 		}
 	}()
