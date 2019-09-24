@@ -28,6 +28,7 @@ func start() {
 	elc := ELController{
 		MulticastReceiver: &transport.UDPMulticastReceiver{},
 		MulticastSender:   ms,
+		UnicastReceiver:   &transport.UDPUnicastReceiver{},
 		ExporterAddr:      *exporterAddr,
 	}
 

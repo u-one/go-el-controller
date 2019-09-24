@@ -164,6 +164,5 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan 
 
 		}
 	}()
-
 	return results
 }
