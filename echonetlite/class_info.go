@@ -32,10 +32,9 @@ func (cim ClassInfoMap) Get(c Class) *ClassInfo {
 		return cim[c]
 	}
 	return &ClassInfo{
-		ClassGroupCode: c.ClassGroupCode,
-		ClassCode:      c.ClassCode,
-		Properties:     make(map[PropertyCode]*PropertyInfo),
-		Desc:           "unknown",
+		Class:      Class{c.ClassGroupCode, c.ClassCode},
+		Properties: make(map[PropertyCode]*PropertyInfo),
+		Desc:       "unknown",
 	}
 }
 
@@ -46,20 +45,28 @@ type Class struct {
 }
 
 // NewClass returns new instance of Class
-func NewClass(classGroupCode, classCode byte) Class {
-	clogger.Println("NewClass ClassGroup code:", classGroupCode, " Class code:", classCode)
+func NewClass(o Object) Class {
+	clogger.Println("NewClass ClassGroup code:", o.classGroupCode(), " Class code:", o.classCode())
 	return Class{
-		ClassGroupCode: classGroupCode,
-		ClassCode:      classCode,
+		ClassGroupCode: byte(o.classGroupCode()),
+		ClassCode:      byte(o.classCode()),
+	}
+}
+
+// NewClassWithCode returns new instance of Class
+func NewClassWithCode(cgc ClassGroupCode, cc ClassCode) Class {
+	clogger.Println("NewClass ClassGroup code:", cgc, " Class code:", cc)
+	return Class{
+		ClassGroupCode: byte(cgc),
+		ClassCode:      byte(cc),
 	}
 }
 
 // ClassInfo is static information about Class
 type ClassInfo struct {
-	ClassGroupCode byte
-	ClassCode      byte
-	Properties     map[PropertyCode]*PropertyInfo
-	Desc           string
+	Class      Class
+	Properties map[PropertyCode]*PropertyInfo
+	Desc       string
 }
 
 // NewClassInfo creates ClassInfo instance
@@ -104,13 +111,12 @@ func Load() (ClassInfoMap, error) {
 
 		properties := loadFromFile(path + "/" + file.Name())
 		if properties != nil {
-			cls := ClassInfo{
-				ClassGroupCode: codes[0],
-				ClassCode:      codes[1],
-				Properties:     properties,
-				Desc:           "",
+			clsInfo := ClassInfo{
+				Class:      Class{codes[0], codes[1]},
+				Properties: properties,
+				Desc:       "",
 			}
-			classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
+			classMap[clsInfo.Class] = &clsInfo
 		}
 	}
 
@@ -121,24 +127,22 @@ func Load() (ClassInfoMap, error) {
 		properties[0xd5] = &PropertyInfo{Code: 0xd5, Detail: "インスタンスリスト通知"}
 		properties[0xd6] = &PropertyInfo{Code: 0xd6, Detail: "自ノードインスタンスリストS"}
 		properties[0xd7] = &PropertyInfo{Code: 0xd7, Detail: "自ノードクラスリストS"}
-		cls := ClassInfo{
-			ClassGroupCode: 0x0e,
-			ClassCode:      0xf0,
-			Properties:     properties,
-			Desc:           "ノードプロファイル",
+		clsInfo := ClassInfo{
+			Class:      Class{0x0e, 0xf0},
+			Properties: properties,
+			Desc:       "ノードプロファイル",
 		}
-		logger.Println(cls)
-		classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
+		logger.Println(clsInfo)
+		classMap[clsInfo.Class] = &clsInfo
 	}
 
-	cls := ClassInfo{
-		ClassGroupCode: 0x05,
-		ClassCode:      0xff,
-		Properties:     make(map[PropertyCode]*PropertyInfo, 0),
-		Desc:           "コントローラ",
+	clsInfo := ClassInfo{
+		Class:      Class{0x05, 0xff},
+		Properties: make(map[PropertyCode]*PropertyInfo, 0),
+		Desc:       "コントローラ",
 	}
-	logger.Println(cls)
-	classMap[NewClass(cls.ClassGroupCode, cls.ClassCode)] = &cls
+	logger.Println(clsInfo)
+	classMap[clsInfo.Class] = &clsInfo
 
 	return classMap, nil
 }

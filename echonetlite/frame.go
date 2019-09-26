@@ -34,6 +34,32 @@ const (
 	ArbitraryFormat byte = 0x82
 )
 
+// Object is object
+type Object struct {
+	Data Data
+}
+
+// Class returns Class
+func (o Object) Class() Class {
+	return Class{o.Data[0], o.Data[1]}
+}
+
+func (o Object) classGroupCode() ClassGroupCode {
+	return ClassGroupCode(o.Data[0])
+}
+
+func (o Object) classCode() ClassCode {
+	return ClassCode(o.Data[1])
+}
+
+func (o Object) isNodeProfile() bool {
+	if o.Data[0] == byte(ProfileGroup) &&
+		o.Data[1] == byte(Profile) {
+		return true
+	}
+	return false
+}
+
 // Property represents Echonet-Lite property
 type Property struct {
 	Code byte
@@ -47,8 +73,8 @@ type Frame struct {
 	EHD        Data    // Echonet Lite Header
 	TID        Data    // Transaction ID
 	EData      Data    // Echonet Lite Data
-	SEOJ       Data    // Source Echonet Lite Object
-	DEOJ       Data    // Destination Echonet Lite Object
+	SEOJ       Object  // Source Echonet Lite Object
+	DEOJ       Object  // Destination Echonet Lite Object
 	ESV        ESVType // Echonet Lite Service
 	OPC        Data    // Num of Properties
 	Properties []Property
@@ -64,8 +90,8 @@ func ParseFrame(data []byte) (Frame, error) {
 	EHD := frame[:2]
 	TID := frame[2:4]
 	EDATA := frame[4:]
-	SEOJ := EDATA[:3]
-	DEOJ := EDATA[3:6]
+	SEOJ := Object{Data: EDATA[:3]}
+	DEOJ := Object{Data: EDATA[3:6]}
 	ESV := ESVType(EDATA[6:7][0])
 	OPC := EDATA[7:8]
 
@@ -237,12 +263,12 @@ func (f *Frame) parseFrame() error {
 
 // SrcClass returns src class
 func (f Frame) SrcClass() Class {
-	return NewClass(f.SEOJ[0], f.SEOJ[1])
+	return NewClass(f.SEOJ)
 }
 
 // DstClass returns dst class
 func (f Frame) DstClass() Class {
-	return NewClass(f.DEOJ[0], f.DEOJ[1])
+	return NewClass(f.DEOJ)
 }
 
 // String returns string
@@ -396,7 +422,12 @@ const (
 	HealthCareGroup     ClassGroupCode = 0x04
 	ControllerGroup     ClassGroupCode = 0x05
 	AVGroup             ClassGroupCode = 0x06
+
+	ProfileGroup ClassGroupCode = 0x0E
 )
+
+// Profile is definition of profile object class code
+const Profile ClassCode = 0xF0
 
 // definition of class codes for AirConditionerGroup
 const (

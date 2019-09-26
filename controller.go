@@ -60,7 +60,7 @@ type ELController struct {
 type NodeList map[string]Node
 
 // Add adds Node
-func (nlist *NodeList) Add(addr string) {
+func (nlist *NodeList) Add(addr string, obj echonetlite.Object) {
 	if _, ok := (*nlist)[addr]; !ok {
 		(*nlist)[addr] = Node{}
 	}
@@ -68,11 +68,7 @@ func (nlist *NodeList) Add(addr string) {
 
 // Node represents a node profile object
 type Node struct {
-	Devices []Device
-}
-
-// Device represents a device object
-type Device struct {
+	Devices []echonetlite.Object
 }
 
 // Start starts controller
@@ -123,8 +119,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 
 					switch frame.ESV {
 					case echonetlite.Inf:
-						//if frame.SEOJ
-						elc.nodeList.Add(result.Address)
+						elc.nodeList.Add(result.Address, frame.SEOJ)
 						//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
 						//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
 
@@ -150,32 +145,34 @@ func (elc ELController) readMulticast(ctx context.Context) {
 }
 
 func (elc ELController) readUnicast(ctx context.Context) {
-	go func() {
-		ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
+	/*
+		go func() {
+			ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
 
-		handler := func(results <-chan transport.ReceiveResult) {
-			for {
-				select {
-				case <-ctx.Done():
-					clogger.Println("readUnicast handler ctx.Done")
-					return
-				case result := <-results:
-					if result.Err != nil {
-						clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
-						break
+			handler := func(results <-chan transport.ReceiveResult) {
+				for {
+					select {
+					case <-ctx.Done():
+						clogger.Println("readUnicast handler ctx.Done")
+						return
+					case result := <-results:
+						if result.Err != nil {
+							clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
+							break
+						}
+						clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
+						frame, err := echonetlite.ParseFrame(result.Data)
+						if err != nil {
+							clogger.Printf("[Error] parse failed [%s]\n", err)
+							break
+						}
+						clogger.Printf("[%v] %v\n", result.Address, frame)
 					}
-					clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
-					frame, err := echonetlite.ParseFrame(result.Data)
-					if err != nil {
-						clogger.Printf("[Error] parse failed [%s]\n", err)
-						break
-					}
-					clogger.Printf("[%v] %v\n", result.Address, frame)
 				}
 			}
-		}
-		handler(ch)
-	}()
+			handler(ch)
+		}()
+	*/
 
 }
 

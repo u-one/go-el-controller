@@ -1,6 +1,6 @@
 package transport
 
-//go:generate mockgen -source transport.go -destination transport_mock.go -package main
+//go:generate mockgen -source transport.go -destination transport_mock.go -package transport
 
 import (
 	"context"
