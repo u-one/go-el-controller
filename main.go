@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/transport"
 )
+
+var version string
 
 func start() {
 	ctx := context.Background()
@@ -43,6 +46,8 @@ var exporterAddr = flag.String("listen-address", ":8083", "The address to listen
 
 func main() {
 	flag.Parse()
+
+	fmt.Printf("version: %s\n", version)
 
 	var err error
 	// TODO: refactor
