@@ -21,6 +21,27 @@ var bRoutePW = flag.String("broutepw", "", "B-route password")
 func main() {
 	flag.Parse()
 
+	wisunClient := NewBP35C2Client()
+	c := NewElectricityMeterClient(wisunClient)
+	defer c.Close()
+
+	c.StartSequence(*bRouteID, *bRoutePW)
+}
+
+type SerialClient interface {
+	Send(cmd string) error
+	Recv() (string, error)
+	Close()
+}
+
+type BP35C2Client struct {
+	sendSeq int
+	readSeq int
+	port serial.Port 
+	reader *bufio.Reader
+}
+
+func NewBP35C2Client() *BP35C2Client {
 	config := serial.Config{
 		Address:  "/dev/ttyUSB0",
 		BaudRate: 115200,
@@ -34,58 +55,76 @@ func main() {
 	if err != nil {
 		log.Fatal("Faild to open serial:", err)
 	}
-	defer port.Close()
-
-	sendSeq := 0
-	send := func(cmd string) error {
-		sendSeq += 1
-		log.Printf("Send[%d]:%s", sendSeq, string(cmd))
-		if _, err = port.Write([]byte(cmd)); err != nil {
-			log.Fatal(err)
-		}
-		return err
-	}
 
 	reader := bufio.NewReaderSize(port, 4096)
 
-	readSeq := 0
-	read := func() (string, error) {
-		line, _, err := reader.ReadLine()
-		readSeq += 1
-		if err != nil {
-			//log.Fatal(err)
-			log.Println(err)
-			return "", err
-		}
-		log.Printf("Read[%d]:%s", readSeq, string(line))
-		return string(line), err
+	return &BP35C2Client{port: port, reader: reader}
+}
+
+func (c BP35C2Client) Close() {
+	c.port.Close()
+}
+
+func (c *BP35C2Client) Send(cmd string) error {
+	c.sendSeq += 1
+	log.Printf("Send[%d]:%s", c.sendSeq, string(cmd))
+	var err error
+	if _, err = c.port.Write([]byte(cmd)); err != nil {
+		log.Fatal(err)
 	}
+	return err
+}
 
-	send("SKVER\r\n")
-	read()
-	read()
-	read()
+func (c *BP35C2Client) Recv() (string, error) {
+	line, _, err := c.reader.ReadLine()
+	c.readSeq += 1
+	if err != nil {
+		//log.Fatal(err)
+		log.Println(err)
+		return "", err
+	}
+	log.Printf("Read[%d]:%s", c.readSeq, string(line))
+	return string(line), err
+}
 
-	if len(*bRouteID) == 0 {
+type ElectricityMeterClient struct {
+	serialClient SerialClient
+}
+
+func NewElectricityMeterClient(c SerialClient) *ElectricityMeterClient {
+	return &ElectricityMeterClient{c}
+}
+
+func (c ElectricityMeterClient) Close() {
+	c.serialClient.Close() 
+}
+
+func (c ElectricityMeterClient) StartSequence(bRouteID, bRoutePW string) {
+	c.serialClient.Send("SKVER\r\n")
+	c.serialClient.Recv()
+	c.serialClient.Recv()
+	c.serialClient.Recv()
+
+	if len(bRouteID) == 0 {
 		log.Fatal("set B-route ID")
 	}
-	if len(*bRoutePW) == 0 {
+	if len(bRoutePW) == 0 {
 		log.Fatal("set B-route password")
 	}
 
-	send("SKSETPWD C " + *bRoutePW + "\r\n")
-	read()
-	read()
+	c.serialClient.Send("SKSETPWD C " + bRoutePW + "\r\n")
+	c.serialClient.Recv()
+	c.serialClient.Recv()
 
-	send("SKSETRBID " + *bRouteID + "\r\n")
-	read()
-	read()
+	c.serialClient.Send("SKSETRBID " + bRouteID + "\r\n")
+	c.serialClient.Recv()
+	c.serialClient.Recv()
 
 	scan := func(duration int) bool {
 		cmd := fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)
-		send(cmd)
-		read()
-		read()
+		c.serialClient.Send(cmd)
+		c.serialClient.Recv()
+		c.serialClient.Recv()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -94,7 +133,7 @@ func main() {
 			ch := make(chan error)
 			data := ""
 			go func(data *string) {
-				res, err := read()
+				res, err := c.serialClient.Recv()
 				if err != nil {
 					log.Println(err)
 					ch <- err
@@ -149,30 +188,30 @@ func main() {
 
 	recvEPANDesc := func() (epanDesc, error) {
 		ed := epanDesc{}
-		line, err := read()
+		line, err := c.serialClient.Recv()
 		if err == nil && strings.HasPrefix(line, "EPANDESC") {
-			line, err := read() // Channel
+			line, err := c.serialClient.Recv() // Channel
 			if err != nil {
 				return epanDesc{}, fmt.Errorf("Failed to get Channel [%s]", err)
 			}
 			tokens := strings.Split(line, "Channel:")
 			ed.Channel = strings.Trim(tokens[1], "\r\n")
-			read()             // Channel Page: XX
-			line, err = read() // Pan ID: XXXX
+			c.serialClient.Recv()             // Channel Page: XX
+			line, err = c.serialClient.Recv() // Pan ID: XXXX
 			if err != nil {
 				return epanDesc{}, fmt.Errorf("Failed to get Pan ID [%s]", err)
 			}
 			tokens = strings.Split(line, "Pan ID:")
 			ed.PanID = strings.Trim(tokens[1], "\r\n")
-			line, err = read() // Addr:XXXXXXXXXXXXXXXX
+			line, err = c.serialClient.Recv() // Addr:XXXXXXXXXXXXXXXX
 			if err != nil {
 				return epanDesc{}, fmt.Errorf("Failed to get Addr [%s]", err)
 			}
 			tokens = strings.Split(line, "Addr:")
 			ed.Addr = strings.Trim(tokens[1], "\r\n")
-			read() // LQI:CA
-			read() // Side:X
-			read() // PairID:XXXXXXXX
+			c.serialClient.Recv() // LQI:CA
+			c.serialClient.Recv() // Side:X
+			c.serialClient.Recv() // PairID:XXXXXXXX
 		}
 		return ed, err
 	}
@@ -183,9 +222,9 @@ func main() {
 	log.Printf("Received EPANDesc:%#v", ed)
 
 	cmd := fmt.Sprintf("SKLL64 %s\r\n", ed.Addr)
-	send(cmd)
-	read()
-	line, err := read()
+	c.serialClient.Send(cmd)
+	c.serialClient.Recv()
+	line, err := c.serialClient.Recv()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -193,20 +232,20 @@ func main() {
 	log.Printf("Translated address:%#v", ed)
 
 	cmd = fmt.Sprintf("SKSREG S2 %s\r\n", ed.Channel)
-	send(cmd)
-	read()
-	read()
+	c.serialClient.Send(cmd)
+	c.serialClient.Recv()
+	c.serialClient.Recv()
 
 	cmd = fmt.Sprintf("SKSREG S3 %s\r\n", ed.PanID)
-	send(cmd)
-	read()
-	read()
+	c.serialClient.Send(cmd)
+	c.serialClient.Recv()
+	c.serialClient.Recv()
 
 	join := func(ed epanDesc) bool {
 		cmd = fmt.Sprintf("SKJOIN %s\r\n", ed.IPV6Addr)
-		send(cmd)
-		read()
-		read()
+		c.serialClient.Send(cmd)
+		c.serialClient.Recv()
+		c.serialClient.Recv()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -217,7 +256,7 @@ func main() {
 				log.Fatal(ctx.Err())
 				return false
 			default:
-				res, err := read()
+				res, err := c.serialClient.Recv()
 				if err != nil {
 					log.Println(err)
 					if err.Error() == "serial: timeout" {
@@ -242,9 +281,11 @@ func main() {
 		log.Fatal("Failed to join")
 	}
 
-	read()
-	read()
-	read()
-	read()
+	c.serialClient.Recv()
+	c.serialClient.Recv()
+	c.serialClient.Recv()
+	c.serialClient.Recv()
 
 }
+
+
