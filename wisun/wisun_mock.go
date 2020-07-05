@@ -9,40 +9,66 @@ import (
 	reflect "reflect"
 )
 
-// MockSerial is a mock of Serial interface
-type MockSerial struct {
+// MockSerialClient is a mock of SerialClient interface
+type MockSerialClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockSerialMockRecorder
+	recorder *MockSerialClientMockRecorder
 }
 
-// MockSerialMockRecorder is the mock recorder for MockSerial
-type MockSerialMockRecorder struct {
-	mock *MockSerial
+// MockSerialClientMockRecorder is the mock recorder for MockSerialClient
+type MockSerialClientMockRecorder struct {
+	mock *MockSerialClient
 }
 
-// NewMockSerial creates a new mock instance
-func NewMockSerial(ctrl *gomock.Controller) *MockSerial {
-	mock := &MockSerial{ctrl: ctrl}
-	mock.recorder = &MockSerialMockRecorder{mock}
+// NewMockSerialClient creates a new mock instance
+func NewMockSerialClient(ctrl *gomock.Controller) *MockSerialClient {
+	mock := &MockSerialClient{ctrl: ctrl}
+	mock.recorder = &MockSerialClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockSerial) EXPECT() *MockSerialMockRecorder {
+func (m *MockSerialClient) EXPECT() *MockSerialClientMockRecorder {
 	return m.recorder
 }
 
 // Send mocks base method
-func (m *MockSerial) Send(cmd string) ([]string, error) {
+func (m *MockSerialClient) Send(cmd string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", cmd)
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send
+func (mr *MockSerialClientMockRecorder) Send(cmd interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSerialClient)(nil).Send), cmd)
+}
+
+// Recv mocks base method
+func (m *MockSerialClient) Recv() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Send indicates an expected call of Send
-func (mr *MockSerialMockRecorder) Send(cmd interface{}) *gomock.Call {
+// Recv indicates an expected call of Recv
+func (mr *MockSerialClientMockRecorder) Recv() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSerial)(nil).Send), cmd)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSerialClient)(nil).Recv))
+}
+
+// Close mocks base method
+func (m *MockSerialClient) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close
+func (mr *MockSerialClientMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSerialClient)(nil).Close))
 }
