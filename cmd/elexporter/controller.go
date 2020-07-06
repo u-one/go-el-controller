@@ -193,8 +193,8 @@ func (elc ELController) sendLoop(ctx context.Context) {
 		sendFrame(f)
 
 		// ver.1.1
-		//f = echonetlite.CreateGetFrame()
-		//sendFrame(f)
+		f = echonetlite.CreateGetFrame(elc.tid)
+		sendFrame(f)
 
 		time.Sleep(time.Second * 3)
 
