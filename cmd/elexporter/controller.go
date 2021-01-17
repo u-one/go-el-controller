@@ -49,6 +49,7 @@ const (
 // ELController is ECHONETLite controller
 type ELController struct {
 	MulticastReceiver transport.MulticastReceiver
+	UnicastReceiver transport.UDPUnicastReceiver
 	MulticastSender   transport.MulticastSender
 	ExporterAddr      string
 	Server            *http.ServeMux
@@ -79,7 +80,7 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.readMulticast(ctx)
 
 	//wg.Add(1)
-	//elc.readUnicast(ctx)
+	elc.readUnicast(ctx)
 
 	elc.sendLoop(ctx)
 	//f = createAirconGetFrame()
@@ -145,7 +146,6 @@ func (elc ELController) readMulticast(ctx context.Context) {
 }
 
 func (elc ELController) readUnicast(ctx context.Context) {
-	/*
 		go func() {
 			ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
 
@@ -172,7 +172,6 @@ func (elc ELController) readUnicast(ctx context.Context) {
 			}
 			handler(ch)
 		}()
-	*/
 
 }
 
