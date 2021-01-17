@@ -49,6 +49,7 @@ const (
 // ELController is ECHONETLite controller
 type ELController struct {
 	MulticastReceiver transport.MulticastReceiver
+	UnicastReceiver   transport.UnicastReceiver
 	MulticastSender   transport.MulticastSender
 	ExporterAddr      string
 	Server            *http.ServeMux
@@ -79,7 +80,7 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.readMulticast(ctx)
 
 	//wg.Add(1)
-	//elc.readUnicast(ctx)
+	elc.readUnicast(ctx)
 
 	elc.sendLoop(ctx)
 	//f = createAirconGetFrame()
@@ -145,35 +146,33 @@ func (elc ELController) readMulticast(ctx context.Context) {
 }
 
 func (elc ELController) readUnicast(ctx context.Context) {
-	/*
-		go func() {
-			ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
+	go func() {
+		ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
 
-			handler := func(results <-chan transport.ReceiveResult) {
-				for {
-					select {
-					case <-ctx.Done():
-						clogger.Println("readUnicast handler ctx.Done")
-						return
-					case result := <-results:
-						if result.Err != nil {
-							clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
-							break
-						}
-						clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
-						frame, err := echonetlite.ParseFrame(result.Data)
-						if err != nil {
-							clogger.Printf("[Error] parse failed [%s]\n", err)
-							break
-						}
-						clogger.Printf("[%v] %v\n", result.Address, frame)
+		handler := func(results <-chan transport.ReceiveResult) {
+			for {
+				select {
+				case <-ctx.Done():
+					clogger.Println("readUnicast handler ctx.Done")
+					return
+				case result := <-results:
+					if result.Err != nil {
+						clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
+						break
 					}
+					clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
+					frame, err := echonetlite.ParseFrame(result.Data)
+					if err != nil {
+						clogger.Printf("[Error] parse failed [%s]\n", err)
+						break
+					}
+					clogger.Printf("[%v] %v\n", result.Address, frame)
+
 				}
 			}
-			handler(ch)
-		}()
-	*/
-
+		}
+		handler(ch)
+	}()
 }
 
 func (elc ELController) sendLoop(ctx context.Context) {

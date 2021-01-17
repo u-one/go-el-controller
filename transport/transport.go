@@ -126,7 +126,13 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan 
 	log.Println("Start to listen unicast udp ", ip, port)
 
 	go func() {
-		conn, err := net.ListenPacket("udp", ip+port)
+		address, err := net.ResolveUDPAddr("udp", ip+port)
+		log.Println("resolved:", address)
+		if err != nil {
+			results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}
+			return
+		}
+		conn, err := net.ListenUDP("udp", address)
 		if err != nil {
 			results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: [%s]", err)}
 			return
@@ -135,7 +141,7 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan 
 
 		buffer := make([]byte, 1024)
 		for {
-			length, remoteAddress, err := conn.ReadFrom(buffer)
+			length, remoteAddress, err := conn.ReadFromUDP(buffer)
 			if err != nil {
 				log.Println("Unicast Error:", err)
 			} else if length > 0 {
@@ -158,45 +164,5 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan 
 
 		}
 	}()
-
-	/*
-		go func() {
-			defer close(results)
-			udpAddr, err := net.ResolveUDPAddr("udp", r.IP+r.Port)
-			if err != nil {
-				results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: [%s]", err)}
-			}
-			conn, err := net.ListenUDP("udp", udpAddr)
-			if err != nil {
-				results <- ReceiveResult{Err: fmt.Errorf("Unicast Error: [%s]", err)}
-			}
-			defer conn.Close()
-			buffer := make([]byte, 1500)
-
-			for {
-				conn.SetDeadline(time.Now().Add(1 * time.Second))
-				length, remoteAddress, err := conn.ReadFrom(buffer)
-				if err != nil {
-					log.Println("Unicast Error:", err)
-				} else if length > 0 {
-					fmt.Println()
-					// Need copy because buffer will be cleared and reuse
-					data := append([]byte{}, buffer[:length]...)
-					results <- ReceiveResult{Data: data, Address: remoteAddress.String(), Err: nil}
-				}
-
-				select {
-				case <-ctx.Done():
-					log.Println("ctx.Done")
-					return
-				default:
-				}
-
-				for i := range buffer {
-					buffer[i] = 0
-				}
-			}
-		}()
-	*/
 	return results
 }
