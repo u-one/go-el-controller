@@ -106,15 +106,15 @@ func (m *MockUnicastReceiver) EXPECT() *MockUnicastReceiverMockRecorder {
 }
 
 // Start mocks base method
-func (m *MockUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan ReceiveResult {
+func (m *MockUnicastReceiver) Start(ctx context.Context, port string) <-chan ReceiveResult {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start", ctx, ip, port)
+	ret := m.ctrl.Call(m, "Start", ctx, port)
 	ret0, _ := ret[0].(<-chan ReceiveResult)
 	return ret0
 }
 
 // Start indicates an expected call of Start
-func (mr *MockUnicastReceiverMockRecorder) Start(ctx, ip, port interface{}) *gomock.Call {
+func (mr *MockUnicastReceiverMockRecorder) Start(ctx, port interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockUnicastReceiver)(nil).Start), ctx, ip, port)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockUnicastReceiver)(nil).Start), ctx, port)
 }

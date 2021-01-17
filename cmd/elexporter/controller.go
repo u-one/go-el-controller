@@ -147,7 +147,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 
 func (elc ELController) readUnicast(ctx context.Context) {
 	go func() {
-		ch := elc.UnicastReceiver.Start(ctx, "localhost", ":3611")
+		ch := elc.UnicastReceiver.Start(ctx, ":3611")
 
 		handler := func(results <-chan transport.ReceiveResult) {
 			for {
