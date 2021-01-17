@@ -29,7 +29,7 @@ type MulticastSender interface {
 
 // UnicastReceiver is unicast receiver
 type UnicastReceiver interface {
-	Start(ctx context.Context, ip, port string) <-chan ReceiveResult
+	Start(ctx context.Context, port string) <-chan ReceiveResult
 }
 
 // UDPMulticastReceiver is udp multicast receiver
@@ -121,12 +121,12 @@ type UDPUnicastReceiver struct {
 }
 
 // Start starts to receive
-func (r *UDPUnicastReceiver) Start(ctx context.Context, ip, port string) <-chan ReceiveResult {
+func (r *UDPUnicastReceiver) Start(ctx context.Context, port string) <-chan ReceiveResult {
 	results := make(chan ReceiveResult, 5)
-	log.Println("Start to listen unicast udp ", ip, port)
+	log.Println("Start to listen unicast udp ", port)
 
 	go func() {
-		address, err := net.ResolveUDPAddr("udp", ip+port)
+		address, err := net.ResolveUDPAddr("udp", port)
 		log.Println("resolved:", address)
 		if err != nil {
 			results <- ReceiveResult{Err: fmt.Errorf("Error: [%s]", err)}

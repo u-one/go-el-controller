@@ -16,19 +16,24 @@ func TestController(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := transport.NewMockMulticastReceiver(ctrl)
+	ur := transport.NewMockUnicastReceiver(ctrl)
 	s := transport.NewMockMulticastSender(ctrl)
 
-	ch := make(chan transport.ReceiveResult, 1)
-	defer close(ch)
+	mch := make(chan transport.ReceiveResult, 1)
+	defer close(mch)
+	uch := make(chan transport.ReceiveResult, 1)
+	defer close(uch)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	r.EXPECT().Start(gomock.Any(), "224.0.23.0", ":3610").Return(ch)
+	r.EXPECT().Start(gomock.Any(), "224.0.23.0", ":3610").Return(mch)
+	ur.EXPECT().Start(gomock.Any(), ":3611").Return(uch)
 
 	c := ELController{
 		MulticastReceiver: r,
 		MulticastSender:   s,
+		UnicastReceiver:   ur,
 	}
 
 	state := 0
@@ -75,7 +80,7 @@ func TestController(t *testing.T) {
 			timer := time.NewTimer(delay)
 			<-timer.C
 			rr := transport.ReceiveResult{Data: data, Address: addr, Err: nil}
-			ch <- rr
+			mch <- rr
 		}
 		airconResp := []byte{0x10, 0x81, 0x0, 0x0, 0x4, 0x30, 0x1, 0x5, 0xff, 0x1, 0x72, 0x4, 0x81, 0x1, 0x41, 0x83, 0x11, 0xfe, 0x0, 0x0, 0x8, 0x60, 0xf1, 0x89, 0x30, 0x6d, 0xf5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xbb, 0x01, 0x01, 0xbe, 0x1, 0x09}
 		send(airconResp, "192.168.1.1", time.Second)
