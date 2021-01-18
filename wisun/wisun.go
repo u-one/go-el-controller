@@ -12,8 +12,8 @@ import (
 
 // SerialClient is serial interface
 type SerialClient interface {
-	Send(cmd string) error
-	Recv() (string, error)
+	Send(in []byte) error
+	Recv() ([]byte, error)
 	Close()
 }
 
@@ -52,25 +52,25 @@ func (c BP35C2Client) Close() {
 }
 
 // Send sends serial command
-func (c *BP35C2Client) Send(cmd string) error {
+func (c *BP35C2Client) Send(in []byte) error {
 	c.sendSeq++
-	log.Printf("Send[%d]:%s", c.sendSeq, string(cmd))
+	log.Printf("Send[%d]:%s", c.sendSeq, string(in))
 	var err error
-	if _, err = c.port.Write([]byte(cmd)); err != nil {
+	if _, err = c.port.Write(in); err != nil {
 		log.Fatal(err)
 	}
 	return err
 }
 
 // Recv receives serial response by line
-func (c *BP35C2Client) Recv() (string, error) {
+func (c *BP35C2Client) Recv() ([]byte, error) {
 	line, _, err := c.reader.ReadLine()
 	c.readSeq++
 	if err != nil {
 		//log.Fatal(err)
 		log.Println(err)
-		return "", err
+		return []byte{}, err
 	}
 	log.Printf("Read[%d]:%s", c.readSeq, string(line))
-	return string(line), err
+	return line, err
 }

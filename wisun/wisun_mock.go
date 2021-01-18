@@ -33,24 +33,24 @@ func (m *MockSerialClient) EXPECT() *MockSerialClientMockRecorder {
 }
 
 // Send mocks base method
-func (m *MockSerialClient) Send(cmd string) error {
+func (m *MockSerialClient) Send(in []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", cmd)
+	ret := m.ctrl.Call(m, "Send", in)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Send indicates an expected call of Send
-func (mr *MockSerialClientMockRecorder) Send(cmd interface{}) *gomock.Call {
+func (mr *MockSerialClientMockRecorder) Send(in interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSerialClient)(nil).Send), cmd)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSerialClient)(nil).Send), in)
 }
 
 // Recv mocks base method
-func (m *MockSerialClient) Recv() (string, error) {
+func (m *MockSerialClient) Recv() ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Recv")
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

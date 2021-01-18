@@ -1,6 +1,7 @@
 package wisun
 
 import (
+	"context"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
@@ -11,11 +12,10 @@ func TestVer(t *testing.T) {
 	defer ctrl.Finish()
 	mock := NewMockSerialClient(ctrl)
 	mock.EXPECT().Send(gomock.Any()).Return(nil)
-	mock.EXPECT().Recv().Return("OK", nil).Times(3)
+	mock.EXPECT().Recv().Return([]byte("OK"), nil).Times(3)
 
 	c := NewElectricityMeterClient(mock)
 	c.Version()
-
 }
 
 func TestStartSequence(t *testing.T) {
@@ -86,13 +86,13 @@ func TestStartSequence(t *testing.T) {
 	lastCmd := ""
 	respCnt := -1
 
-	mock.EXPECT().Send(gomock.Any()).DoAndReturn(func(cmd string) error {
-		lastCmd = cmd
+	mock.EXPECT().Send(gomock.Any()).DoAndReturn(func(cmd []byte) error {
+		lastCmd = string(cmd)
 		respCnt = -1
 		return nil
 	}).AnyTimes()
 
-	mock.EXPECT().Recv().DoAndReturn(func() (string, error) {
+	mock.EXPECT().Recv().DoAndReturn(func() ([]byte, error) {
 		responses := pattern[lastCmd]
 		resp := ""
 		if respCnt == -1 {
@@ -101,7 +101,7 @@ func TestStartSequence(t *testing.T) {
 			resp = responses[respCnt]
 		}
 		respCnt++
-		return resp, nil
+		return []byte(resp), nil
 	}).AnyTimes()
 
 	c := NewElectricityMeterClient(mock)
@@ -120,4 +120,54 @@ func TestStartSequence(t *testing.T) {
 		}
 	*/
 
+}
+
+func TestGetCurrentPowerConsumption(t *testing.T) {
+	/*
+		frame:b'1081000105ff010288016201e700'
+		b'SKSENDTO 1 FE80:0000:0000:0000:021C:6400:030C:12A4 0E1A 1 0 000E \r\n'
+		b'EVENT 21 FE80:0000:0000:0000:021C:6400:030C:12A4 0 00\r\n'
+		b'OK\r\n'
+		b'\r\n'
+		b''
+		b'ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01r\x01\xe7\x04\x00\x00\x01\xf8\r\n'
+	*/
+
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mock := NewMockSerialClient(ctrl)
+
+	expect := []byte("SKSENDTO 1 FE80:0000:0000:0000:021C:6400:030C:12A4 0E1A 1 0 000E ")
+	expect = append(expect, []byte{0x10, 0x81, 0x00, 0x01, 0x05, 0xff, 0x01, 0x02, 0x88, 0x01, 0x62, 0x01, 0xe7, 0x00}...)
+	expect = append(expect, []byte("\r\n")...)
+	mock.EXPECT().Send(expect).Return(nil)
+
+	respCnt := 0
+	mock.EXPECT().Recv().DoAndReturn(func() ([]byte, error) {
+		pattern := [][]byte{
+			[]byte("EVENT 21 FE80:0000:0000:0000:021C:6400:030C:12A4 0 00\r\n"),
+			[]byte("OK\r\n"),
+			[]byte("\r\n"),
+			[]byte(""),
+			[]byte("ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01r\x01\xe7\x04\x00\x00\x01\xf8\r\n"),
+		}
+		resp := pattern[respCnt]
+		respCnt++
+		return resp, nil
+	}).AnyTimes()
+
+
+	c := NewElectricityMeterClient(mock)
+
+	c.GetCurrentPowerConsumption(context.Background())
+}
+
+
+func Test_parseRXUDP(t *testing.T) {
+	line :=	[]byte("ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01r\x01\xe7\x04\x00\x00\x01\xf8")
+	err := parseRXUDP(line)
+	if err != nil {
+		t.Fatalf("error occured")
+	}
 }
