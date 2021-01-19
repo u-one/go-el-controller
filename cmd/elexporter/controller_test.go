@@ -28,7 +28,7 @@ func TestController(t *testing.T) {
 	defer cancel()
 
 	r.EXPECT().Start(gomock.Any(), "224.0.23.0", ":3610").Return(mch)
-	ur.EXPECT().Start(gomock.Any(), ":3611").Return(uch)
+	ur.EXPECT().Start(gomock.Any(), ":3610").Return(uch)
 
 	c := ELController{
 		MulticastReceiver: r,

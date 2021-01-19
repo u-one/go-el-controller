@@ -77,10 +77,9 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.tid = 0
 	elc.nodeList = make(NodeList)
 
-	elc.readMulticast(ctx)
-
-	//wg.Add(1)
 	elc.readUnicast(ctx)
+
+	elc.readMulticast(ctx)
 
 	elc.sendLoop(ctx)
 	//f = createAirconGetFrame()
@@ -147,7 +146,7 @@ func (elc ELController) readMulticast(ctx context.Context) {
 
 func (elc ELController) readUnicast(ctx context.Context) {
 	go func() {
-		ch := elc.UnicastReceiver.Start(ctx, ":3611")
+		ch := elc.UnicastReceiver.Start(ctx, Port)
 
 		handler := func(results <-chan transport.ReceiveResult) {
 			for {
