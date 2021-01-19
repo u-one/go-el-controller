@@ -82,6 +82,18 @@ func (mr *MockMulticastSenderMockRecorder) Send(data interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockMulticastSender)(nil).Send), data)
 }
 
+// Close mocks base method
+func (m *MockMulticastSender) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close
+func (mr *MockMulticastSenderMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockMulticastSender)(nil).Close))
+}
+
 // MockUnicastReceiver is a mock of UnicastReceiver interface
 type MockUnicastReceiver struct {
 	ctrl     *gomock.Controller
