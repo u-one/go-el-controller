@@ -57,6 +57,24 @@ type ELController struct {
 	nodeList          NodeList
 }
 
+func NewELController(exporterAddr string) (*ELController, error) {
+	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
+	if err != nil {
+		log.Println(err)
+		return &ELController{}, err
+	}
+	return &ELController{
+		MulticastReceiver: &transport.UDPMulticastReceiver{},
+		MulticastSender:   ms,
+		UnicastReceiver:   &transport.UDPUnicastReceiver{},
+		ExporterAddr:      exporterAddr,
+	}, nil
+}
+
+func (elc ELController) Close() {
+	elc.MulticastSender.Close()
+}
+
 // NodeList is list of node profile objects
 type NodeList map[string]Node
 
@@ -77,13 +95,14 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.tid = 0
 	elc.nodeList = make(NodeList)
 
-	elc.readUnicast(ctx)
+	sch := elc.UnicastReceiver.Start(ctx, Port)
+	go elc.handleResult(ctx, sch)
 
-	elc.readMulticast(ctx)
+	mch := elc.MulticastReceiver.Start(ctx, MulticastIP, Port)
+	go elc.handleMulticastResult(ctx, mch)
 
+	elc.startSequence(ctx)
 	elc.sendLoop(ctx)
-	//f = createAirconGetFrame()
-	//sendFrame(conn, f)
 
 	elc.startExporter(ctx)
 
@@ -93,126 +112,109 @@ func (elc ELController) Start(ctx context.Context) {
 
 }
 
-func (elc ELController) readMulticast(ctx context.Context) {
-	go func() {
+func (elc ELController) handleMulticastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
+	for {
+		select {
+		case <-ctx.Done():
+			clogger.Println("readMulticast handler ctx.Done")
+			return
+		case result := <-results:
+			if result.Err != nil {
+				clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
+				break
+			}
+			clogger.Printf("<<<<<<<< [%v] MULTI CAST RECEIVE: ", result.Address)
+			frame, err := echonetlite.ParseFrame(result.Data)
+			if err != nil {
+				clogger.Printf("[Error] parse failed [%s]\n", err)
+				break
+			}
+			clogger.Printf("[%v] %s\n", result.Address, frame)
 
-		ch := elc.MulticastReceiver.Start(ctx, MulticastIP, Port)
+			switch frame.ESV {
+			case echonetlite.Inf:
+				elc.nodeList.Add(result.Address, frame.SEOJ)
+				//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
+				//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
 
-		handler := func(results <-chan transport.ReceiveResult) {
-			for {
-				select {
-				case <-ctx.Done():
-					clogger.Println("readMulticast handler ctx.Done")
-					return
-				case result := <-results:
-					if result.Err != nil {
-						clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
-						break
+			default:
+				switch obj := frame.Object.(type) {
+				case echonetlite.AirconObject:
+					lc := obj.InstallLocation.Code
+					ln := obj.InstallLocation.Number
+					loc := lc.String()
+					if ln != 0 {
+						loc = fmt.Sprintf("%s%d", lc, ln)
 					}
-					clogger.Printf("<<<<<<<< [%v] MULTI CAST RECEIVE: ", result.Address)
-					frame, err := echonetlite.ParseFrame(result.Data)
-					if err != nil {
-						clogger.Printf("[Error] parse failed [%s]\n", err)
-						break
-					}
-					clogger.Printf("[%v] %s\n", result.Address, frame)
-
-					switch frame.ESV {
-					case echonetlite.Inf:
-						elc.nodeList.Add(result.Address, frame.SEOJ)
-						//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
-						//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
-
-					default:
-						switch obj := frame.Object.(type) {
-						case echonetlite.AirconObject:
-							lc := obj.InstallLocation.Code
-							ln := obj.InstallLocation.Number
-							loc := lc.String()
-							if ln != 0 {
-								loc = fmt.Sprintf("%s%d", lc, ln)
-							}
-							tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
-							tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
-						default:
-						}
-					}
+					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
+					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
+				default:
 				}
 			}
 		}
-		handler(ch)
-	}()
+	}
 }
 
-func (elc ELController) readUnicast(ctx context.Context) {
-	go func() {
-		ch := elc.UnicastReceiver.Start(ctx, Port)
-
-		handler := func(results <-chan transport.ReceiveResult) {
-			for {
-				select {
-				case <-ctx.Done():
-					clogger.Println("readUnicast handler ctx.Done")
-					return
-				case result := <-results:
-					if result.Err != nil {
-						clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
-						break
-					}
-					clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
-					frame, err := echonetlite.ParseFrame(result.Data)
-					if err != nil {
-						clogger.Printf("[Error] parse failed [%s]\n", err)
-						break
-					}
-					clogger.Printf("[%v] %v\n", result.Address, frame)
-
-				}
+func (elc ELController) handleResult(ctx context.Context, results <-chan transport.ReceiveResult) {
+	for {
+		select {
+		case <-ctx.Done():
+			clogger.Println("readUnicast handler ctx.Done")
+			return
+		case result := <-results:
+			if result.Err != nil {
+				clogger.Printf("[Error] failed to receive [%s]\n", result.Err)
+				break
 			}
+			clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
+			frame, err := echonetlite.ParseFrame(result.Data)
+			if err != nil {
+				clogger.Printf("[Error] parse failed [%s]\n", err)
+				break
+			}
+			clogger.Printf("[%v] %v\n", result.Address, frame)
+
 		}
-		handler(ch)
-	}()
+	}
+}
+
+func (elc *ELController) sendFrame(f *echonetlite.Frame) {
+	clogger.Printf(">>>>>>>> SEND : %s\n", f)
+	elc.MulticastSender.Send([]byte(f.Data))
+	elc.tid++
+}
+
+func (elc *ELController) startSequence(ctx context.Context) {
+	f := echonetlite.CreateInfFrame(elc.tid)
+	elc.sendFrame(f)
+
+	// ver.1.0
+	f = echonetlite.CreateInfReqFrame(elc.tid)
+	elc.sendFrame(f)
+
+	// ver.1.1
+	f = echonetlite.CreateGetFrame(elc.tid)
+	elc.sendFrame(f)
+
+	time.Sleep(time.Second * 3)
 }
 
 func (elc ELController) sendLoop(ctx context.Context) {
-	go func() {
+	clogger.Println("start sendLoop")
 
-		sendFrame := func(f *echonetlite.Frame) {
-			clogger.Printf(">>>>>>>> SEND : %s\n", f)
-			elc.MulticastSender.Send([]byte(f.Data))
-			elc.tid++
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	f := echonetlite.CreateAirconGetFrame(elc.tid)
+	elc.sendFrame(f)
+
+	for {
+		select {
+		case <-t.C:
+			elc.sendFrame(f)
+		case <-ctx.Done():
+			return
 		}
-
-		f := echonetlite.CreateInfFrame(elc.tid)
-		sendFrame(f)
-
-		// ver.1.0
-		f = echonetlite.CreateInfReqFrame(elc.tid)
-		sendFrame(f)
-
-		// ver.1.1
-		f = echonetlite.CreateGetFrame(elc.tid)
-		sendFrame(f)
-
-		time.Sleep(time.Second * 3)
-
-		t := time.NewTicker(30 * time.Second)
-		defer t.Stop()
-		f = echonetlite.CreateAirconGetFrame(elc.tid)
-		sendFrame(f)
-
-		clogger.Println("start sendLoop")
-
-		for {
-			select {
-			case <-t.C:
-				f := echonetlite.CreateAirconGetFrame(elc.tid)
-				sendFrame(f)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	}
 }
 
 func (elc ELController) startExporter(ctx context.Context) {

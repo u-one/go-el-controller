@@ -25,6 +25,7 @@ type MulticastReceiver interface {
 // MulticastSender is multicast sender
 type MulticastSender interface {
 	Send(data []byte)
+	Close()
 }
 
 // UnicastReceiver is unicast receiver

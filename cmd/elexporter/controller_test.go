@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -66,10 +67,14 @@ func TestController(t *testing.T) {
 		state++
 	})
 
-	aircongetFrame := []byte{0x10, 0x81, 0x0, 0x3, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
 
-	s.EXPECT().Send(aircongetFrame).Do(func(data []byte) {
+	s.EXPECT().Send(gomock.Any()).Do(func(indata []byte) {
 		fmt.Println("aircongetFrame sent", state)
+
+		aircongetFrame := []byte{0x10, 0x81, 0x0, byte(state), 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
+		if !bytes.Equal(aircongetFrame, indata) {
+			t.Errorf("input is not correct")
+		}
 
 		if state < 3 {
 			t.Errorf("order not correct")
@@ -91,7 +96,6 @@ func TestController(t *testing.T) {
 			<-timer.C
 			cancel()
 		}
-
 	}).AnyTimes()
 
 	c.Start(ctx)

@@ -7,7 +7,6 @@ import (
 	"log"
 
 	"github.com/u-one/go-el-controller/echonetlite"
-	"github.com/u-one/go-el-controller/transport"
 )
 
 var version string
@@ -18,21 +17,13 @@ func start() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
+	elc, err := NewELController(*exporterAddr)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer ms.Close()
-
-	elc := ELController{
-		MulticastReceiver: &transport.UDPMulticastReceiver{},
-		MulticastSender:   ms,
-		UnicastReceiver:   &transport.UDPUnicastReceiver{},
-		ExporterAddr:      *exporterAddr,
-	}
-
 	elc.Start(ctx)
+	defer elc.Close()
 
 	select {
 	case <-ctx.Done():
