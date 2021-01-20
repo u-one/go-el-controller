@@ -61,14 +61,138 @@ func (mr *MockSerialClientMockRecorder) Recv() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSerialClient)(nil).Recv))
 }
 
+// MockClient is a mock of Client interface
+type MockClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockClientMockRecorder
+}
+
+// MockClientMockRecorder is the mock recorder for MockClient
+type MockClientMockRecorder struct {
+	mock *MockClient
+}
+
+// NewMockClient creates a new mock instance
+func NewMockClient(ctrl *gomock.Controller) *MockClient {
+	mock := &MockClient{ctrl: ctrl}
+	mock.recorder = &MockClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockClient) EXPECT() *MockClientMockRecorder {
+	return m.recorder
+}
+
+// SetBRoutePassword mocks base method
+func (m *MockClient) SetBRoutePassword(password string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBRoutePassword", password)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetBRoutePassword indicates an expected call of SetBRoutePassword
+func (mr *MockClientMockRecorder) SetBRoutePassword(password interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBRoutePassword", reflect.TypeOf((*MockClient)(nil).SetBRoutePassword), password)
+}
+
+// SetBRouteID mocks base method
+func (m *MockClient) SetBRouteID(id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBRouteID", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetBRouteID indicates an expected call of SetBRouteID
+func (mr *MockClientMockRecorder) SetBRouteID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBRouteID", reflect.TypeOf((*MockClient)(nil).SetBRouteID), id)
+}
+
+// Scan mocks base method
+func (m *MockClient) Scan() (PanDesc, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Scan")
+	ret0, _ := ret[0].(PanDesc)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Scan indicates an expected call of Scan
+func (mr *MockClientMockRecorder) Scan() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Scan", reflect.TypeOf((*MockClient)(nil).Scan))
+}
+
+// LL64 mocks base method
+func (m *MockClient) LL64(addr string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LL64", addr)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LL64 indicates an expected call of LL64
+func (mr *MockClientMockRecorder) LL64(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LL64", reflect.TypeOf((*MockClient)(nil).LL64), addr)
+}
+
+// SRegS2 mocks base method
+func (m *MockClient) SRegS2(channel string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SRegS2", channel)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SRegS2 indicates an expected call of SRegS2
+func (mr *MockClientMockRecorder) SRegS2(channel interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SRegS2", reflect.TypeOf((*MockClient)(nil).SRegS2), channel)
+}
+
+// SRegS3 mocks base method
+func (m *MockClient) SRegS3(panID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SRegS3", panID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SRegS3 indicates an expected call of SRegS3
+func (mr *MockClientMockRecorder) SRegS3(panID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SRegS3", reflect.TypeOf((*MockClient)(nil).SRegS3), panID)
+}
+
+// Join mocks base method
+func (m *MockClient) Join(desc PanDesc) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Join", desc)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Join indicates an expected call of Join
+func (mr *MockClientMockRecorder) Join(desc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Join", reflect.TypeOf((*MockClient)(nil).Join), desc)
+}
+
 // Close mocks base method
-func (m *MockSerialClient) Close() {
+func (m *MockClient) Close() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Close")
 }
 
 // Close indicates an expected call of Close
-func (mr *MockSerialClientMockRecorder) Close() *gomock.Call {
+func (mr *MockClientMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSerialClient)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockClient)(nil).Close))
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -169,5 +170,38 @@ func Test_parseRXUDP(t *testing.T) {
 	err := parseRXUDP(line)
 	if err != nil {
 		t.Fatalf("error occured")
+	}
+}
+
+func TestControllerPANAAuth(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mock := NewMockClient(ctrl)
+
+	mock.EXPECT().SetBRoutePassword("TESTPWDYYYYY").Return(nil)
+	mock.EXPECT().SetBRouteID("000000TESTID00000000000000000000").Return(nil)
+	mock.EXPECT().Scan().Return(PanDesc{
+		Addr: "001A111100000002",
+		IPV6Addr: "",
+		Channel: "21",
+		PanID: "0002",
+	}, nil)
+
+	mock.EXPECT().LL64("001A111100000002").Return("2001:0DB8:0000:0000:011A:1111:0000:0002", nil)
+	mock.EXPECT().SRegS2("21").Return(nil)
+	mock.EXPECT().SRegS3("0002").Return(nil)
+	mock.EXPECT().Join(PanDesc{
+		Addr: "001A111100000002",
+		IPV6Addr: "2001:0DB8:0000:0000:011A:1111:0000:0002",
+		Channel: "21",
+		PanID: "0002",
+	}).Return(true, nil)
+
+
+	c := Controller{mock}
+	err := c.PANAAuth("000000TESTID00000000000000000000", "TESTPWDYYYYY")
+	if err != nil {
+		t.Errorf("failed: %s", err)
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 
+	"github.com/u-one/go-el-controller/hems"
 	"github.com/u-one/go-el-controller/wisun"
 )
 
@@ -13,8 +14,8 @@ func main() {
 	flag.Parse()
 
 	wisunClient := wisun.NewBP35C2Client()
-	c := wisun.NewElectricityMeterClient(wisunClient)
-	defer c.Close()
+	emc := hems.NewElectricityMeterClient(wisunClient)
+	defer emc.Close()
 
-	c.StartSequence(*bRouteID, *bRoutePW)
+	emc.Start(*bRouteID, *bRoutePW)
 }
