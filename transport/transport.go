@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"syscall"
 	"time"
 )
 
@@ -140,21 +139,7 @@ func (r *UDPUnicastReceiver) Start(ctx context.Context, port string) <-chan Rece
 		}
 		defer conn.Close()
 
-		f, err := conn.File()
-		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("unicast error: %w", err)}
-			return
-		}
-		defer f.Close()
-
-		fd := f.Fd()
-		err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-		if err != nil {
-			results <- ReceiveResult{Err: fmt.Errorf("unicast error: %w", err)}
-			return
-		}
-
-		err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+		err = resolveSocketOption(conn)
 		if err != nil {
 			results <- ReceiveResult{Err: fmt.Errorf("unicast error: %w", err)}
 			return
