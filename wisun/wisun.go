@@ -1,14 +1,11 @@
 package wisun
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"time"
-
-	"github.com/goburrow/serial"
 )
 
 //go:generate mockgen -source wisun.go -destination wisun_mock.go -package wisun
@@ -25,51 +22,6 @@ type Client interface {
 	Join(desc PanDesc) (bool, error)
 	Close()
 	SendTo(ipv6addr string, data []byte) ([]byte, error)
-}
-
-type Serial interface {
-	Send([]byte) error
-	Recv() ([]byte, error)
-	Close()
-}
-
-type SerialImpl struct {
-	port   serial.Port
-	reader *bufio.Reader
-}
-
-func NewSerialImpl() *SerialImpl {
-	config := serial.Config{
-		Address:  "/dev/ttyUSB0",
-		BaudRate: 115200,
-		DataBits: 8,
-		StopBits: 1,
-		Parity:   "N",
-		Timeout:  1 * time.Second,
-	}
-
-	port, err := serial.Open(&config)
-	if err != nil {
-		log.Fatal("Faild to open serial:", err)
-	}
-
-	reader := bufio.NewReaderSize(port, 4096)
-
-	return &SerialImpl{port: port, reader: reader}
-}
-
-func (s SerialImpl) Send(in []byte) error {
-	_, err := s.port.Write(in)
-	return err
-}
-
-func (s SerialImpl) Recv() ([]byte, error) {
-	line, _, err := s.reader.ReadLine()
-	return line, err
-}
-
-func (s SerialImpl) Close() {
-	s.port.Close()
 }
 
 // PanDesc is...
@@ -96,6 +48,28 @@ func NewBP35C2Client() *BP35C2Client {
 // Close closees connection
 func (c BP35C2Client) Close() {
 	c.serial.Close()
+}
+
+// Send sends serial command
+func (c *BP35C2Client) send(in []byte) error {
+	c.sendSeq++
+	log.Printf("Send[%d]:%s", c.sendSeq, string(in))
+	var err error
+	if err = c.serial.Send(in); err != nil {
+		log.Fatal(err)
+	}
+	return err
+}
+
+// recv receives serial response by line
+func (c *BP35C2Client) recv() ([]byte, error) {
+	line, err := c.serial.Recv()
+	c.readSeq++
+	if err != nil {
+		return []byte{}, err
+	}
+	log.Printf("Read[%d]:%s", c.readSeq, string(line))
+	return line, err
 }
 
 // Version is ..
@@ -340,26 +314,4 @@ func parseRXUDP(line []byte) ([]byte, error) {
 		return nil, fmt.Errorf("RXUDP invalid format")
 	}
 	return cols[9], nil
-}
-
-// Send sends serial command
-func (c *BP35C2Client) send(in []byte) error {
-	c.sendSeq++
-	log.Printf("Send[%d]:%s", c.sendSeq, string(in))
-	var err error
-	if err = c.serial.Send(in); err != nil {
-		log.Fatal(err)
-	}
-	return err
-}
-
-// recv receives serial response by line
-func (c *BP35C2Client) recv() ([]byte, error) {
-	line, err := c.serial.Recv()
-	c.readSeq++
-	if err != nil {
-		return []byte{}, err
-	}
-	log.Printf("Read[%d]:%s", c.readSeq, string(line))
-	return line, err
 }
