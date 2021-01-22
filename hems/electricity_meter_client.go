@@ -2,6 +2,7 @@ package hems
 
 import (
 	"fmt"
+
 	"github.com/u-one/go-el-controller/wisun"
 )
 
@@ -30,4 +31,9 @@ func (c ElectricityMeterClient) Start(bRouteID, bRoutePassword string) error {
 	}
 	defer c.controller.Close()
 	return nil
+}
+
+func (c ElectricityMeterClient) Version() {
+	c.controller.Version()
+
 }

@@ -1,9 +1,9 @@
 package wisun
 
 import (
-	"log"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/u-one/go-el-controller/echonetlite"
 )
@@ -21,6 +21,10 @@ func NewController(c Client) *Controller {
 // Close close
 func (c Controller) Close() {
 	c.client.Close()
+}
+
+func (c Controller) Version() error {
+	return c.client.Version()
 }
 
 // PANAAuth starts PANA authentication
@@ -73,13 +77,13 @@ func (c Controller) PANAAuth(bRouteID, bRoutePW string) error {
 }
 
 // GetCurrentPowerConsumption is ..
-func (c Controller) GetCurrentPowerConsumption(ctx context.Context) (int ,error) {
+func (c Controller) GetCurrentPowerConsumption(ctx context.Context) (int, error) {
 	elframe := []byte{0x10, 0x81, 0x00, 0x01, 0x05, 0xff, 0x01, 0x02, 0x88, 0x01, 0x62, 0x01, 0xe7, 0x00}
 	ipv6addr := "FE80:0000:0000:0000:021C:6400:030C:12A4"
 
 	eldata, err := c.client.SendTo(ipv6addr, elframe)
 	if err != nil {
-		log.Println(err)
+		return 0, err
 	}
 	elFrame, err := echonetlite.ParseFrame(eldata)
 	if err != nil {
@@ -89,5 +93,3 @@ func (c Controller) GetCurrentPowerConsumption(ctx context.Context) (int ,error)
 
 	return 0, nil
 }
-
-

@@ -2,11 +2,11 @@ package wisun
 
 import (
 	"bufio"
+	"bytes"
+	"context"
+	"fmt"
 	"log"
 	"time"
-	"fmt"
-	"context"
-	"bytes"
 
 	"github.com/goburrow/serial"
 )
@@ -15,36 +15,30 @@ import (
 
 // Client is wisun client
 type Client interface {
+	Version() error
 	SetBRoutePassword(password string) error
 	SetBRouteID(id string) error
 	Scan() (PanDesc, error)
-	LL64(addr string) (string, error) 
-	SRegS2(channel string) error 
+	LL64(addr string) (string, error)
+	SRegS2(channel string) error
 	SRegS3(panID string) error
-	Join(desc PanDesc) (bool, error) 
+	Join(desc PanDesc) (bool, error)
 	Close()
 	SendTo(ipv6addr string, data []byte) ([]byte, error)
 }
 
-// PanDesc is...
-type PanDesc struct {
-	Addr     string
-	IPV6Addr string
-	Channel  string
-	PanID    string
+type Serial interface {
+	Send([]byte) error
+	Recv() ([]byte, error)
+	Close()
 }
 
-
-// BP35C2Client is client for ROHM BP35C2
-type BP35C2Client struct {
-	sendSeq int
-	readSeq int
-	port    serial.Port
-	reader  *bufio.Reader
+type SerialImpl struct {
+	port   serial.Port
+	reader *bufio.Reader
 }
 
-// NewBP35C2Client returns BP35C2Client instance
-func NewBP35C2Client() *BP35C2Client {
+func NewSerialImpl() *SerialImpl {
 	config := serial.Config{
 		Address:  "/dev/ttyUSB0",
 		BaudRate: 115200,
@@ -61,12 +55,47 @@ func NewBP35C2Client() *BP35C2Client {
 
 	reader := bufio.NewReaderSize(port, 4096)
 
-	return &BP35C2Client{port: port, reader: reader}
+	return &SerialImpl{port: port, reader: reader}
+}
+
+func (s SerialImpl) Send(in []byte) error {
+	_, err := s.port.Write(in)
+	return err
+}
+
+func (s SerialImpl) Recv() ([]byte, error) {
+	line, _, err := s.reader.ReadLine()
+	return line, err
+}
+
+func (s SerialImpl) Close() {
+	s.port.Close()
+}
+
+// PanDesc is...
+type PanDesc struct {
+	Addr     string
+	IPV6Addr string
+	Channel  string
+	PanID    string
+}
+
+// BP35C2Client is client for ROHM BP35C2
+type BP35C2Client struct {
+	sendSeq int
+	readSeq int
+	serial  Serial
+}
+
+// NewBP35C2Client returns BP35C2Client instance
+func NewBP35C2Client() *BP35C2Client {
+	s := NewSerialImpl()
+	return &BP35C2Client{serial: s}
 }
 
 // Close closees connection
 func (c BP35C2Client) Close() {
-	c.port.Close()
+	c.serial.Close()
 }
 
 // Version is ..
@@ -79,7 +108,7 @@ func (c BP35C2Client) Version() error {
 }
 
 // SetBRoutePassword is..
-func (c BP35C2Client)SetBRoutePassword(password string) error {
+func (c BP35C2Client) SetBRoutePassword(password string) error {
 	if len(password) == 0 {
 		return fmt.Errorf("set B-route password")
 	}
@@ -91,7 +120,7 @@ func (c BP35C2Client)SetBRoutePassword(password string) error {
 }
 
 // SetBRouteID  is ..
-func (c BP35C2Client)SetBRouteID(id string) error{
+func (c BP35C2Client) SetBRouteID(id string) error {
 	if len(id) == 0 {
 		return fmt.Errorf("set B-route ID")
 	}
@@ -103,7 +132,7 @@ func (c BP35C2Client)SetBRouteID(id string) error{
 }
 
 // Scan is ..
-func (c BP35C2Client)Scan() (PanDesc, error){
+func (c BP35C2Client) Scan() (PanDesc, error) {
 	scan := func(duration int) bool {
 		cmd := fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)
 		c.send([]byte(cmd))
@@ -198,7 +227,7 @@ func (c BP35C2Client)Scan() (PanDesc, error){
 }
 
 // LL64 is .
-func (c BP35C2Client)LL64(addr string) (string, error) {
+func (c BP35C2Client) LL64(addr string) (string, error) {
 	cmd := fmt.Sprintf("SKLL64 %s\r\n", addr)
 	c.send([]byte(cmd))
 	c.recv()
@@ -212,7 +241,7 @@ func (c BP35C2Client)LL64(addr string) (string, error) {
 }
 
 // SRegS2 is.
-func (c BP35C2Client)SRegS2(channel string) error {
+func (c BP35C2Client) SRegS2(channel string) error {
 	cmd := fmt.Sprintf("SKSREG S2 %s\r\n", channel)
 	c.send([]byte(cmd))
 	c.recv()
@@ -221,7 +250,7 @@ func (c BP35C2Client)SRegS2(channel string) error {
 }
 
 // SRegS3 is ..
-func (c BP35C2Client)SRegS3(panID string) error{
+func (c BP35C2Client) SRegS3(panID string) error {
 	cmd := fmt.Sprintf("SKSREG S3 %s\r\n", panID)
 	c.send([]byte(cmd))
 	c.recv()
@@ -230,40 +259,40 @@ func (c BP35C2Client)SRegS3(panID string) error{
 }
 
 // Join is ..
-func (c BP35C2Client)Join(desc PanDesc) (bool, error) {
-		cmd := fmt.Sprintf("SKJOIN %s\r\n", desc.IPV6Addr)
-		c.send([]byte(cmd))
-		c.recv()
-		c.recv()
+func (c BP35C2Client) Join(desc PanDesc) (bool, error) {
+	cmd := fmt.Sprintf("SKJOIN %s\r\n", desc.IPV6Addr)
+	c.send([]byte(cmd))
+	c.recv()
+	c.recv()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
 
-		for {
-			select {
-			case <-ctx.Done():
-				log.Fatal()
-				return false, fmt.Errorf("timeout:%w", ctx.Err())
-			default:
-				res, err := c.recv()
-				if err != nil {
-					log.Println(err)
-					if err.Error() == "serial: timeout" {
-						continue
-					}
-					return false, fmt.Errorf("join failed: %w", err)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Fatal()
+			return false, fmt.Errorf("timeout:%w", ctx.Err())
+		default:
+			res, err := c.recv()
+			if err != nil {
+				log.Println(err)
+				if err.Error() == "serial: timeout" {
+					continue
 				}
+				return false, fmt.Errorf("join failed: %w", err)
+			}
 
-				if bytes.HasPrefix(res, []byte("EVENT 24")) {
-					log.Println("found EVENT 24")
-					return false, nil
-				}
-				if bytes.HasPrefix(res, []byte("EVENT 25")) {
-					log.Println("found EVENT 25")
-					return true, nil
-				}
+			if bytes.HasPrefix(res, []byte("EVENT 24")) {
+				log.Println("found EVENT 24")
+				return false, nil
+			}
+			if bytes.HasPrefix(res, []byte("EVENT 25")) {
+				log.Println("found EVENT 25")
+				return true, nil
 			}
 		}
+	}
 
 }
 
@@ -298,7 +327,7 @@ func (c *BP35C2Client) SendTo(ipv6Addr string, data []byte) ([]byte, error) {
 				// TODO: Trim and Append linebreak in recv(), Send() method
 				bytes.Trim(res, "\r\n")
 				rdata, err := parseRXUDP(res)
-				return rdata,err
+				return rdata, err
 			}
 		}
 	}
@@ -318,7 +347,7 @@ func (c *BP35C2Client) send(in []byte) error {
 	c.sendSeq++
 	log.Printf("Send[%d]:%s", c.sendSeq, string(in))
 	var err error
-	if _, err = c.port.Write(in); err != nil {
+	if err = c.serial.Send(in); err != nil {
 		log.Fatal(err)
 	}
 	return err
@@ -326,7 +355,7 @@ func (c *BP35C2Client) send(in []byte) error {
 
 // recv receives serial response by line
 func (c *BP35C2Client) recv() ([]byte, error) {
-	line, _, err := c.reader.ReadLine()
+	line, err := c.serial.Recv()
 	c.readSeq++
 	if err != nil {
 		return []byte{}, err
@@ -334,5 +363,3 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 	log.Printf("Read[%d]:%s", c.readSeq, string(line))
 	return line, err
 }
-
-
