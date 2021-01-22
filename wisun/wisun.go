@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/u-one/go-el-controller/transport"
 )
 
 //go:generate mockgen -source wisun.go -destination wisun_mock.go -package wisun
@@ -36,12 +38,12 @@ type PanDesc struct {
 type BP35C2Client struct {
 	sendSeq int
 	readSeq int
-	serial  Serial
+	serial  transport.Serial
 }
 
 // NewBP35C2Client returns BP35C2Client instance
 func NewBP35C2Client() *BP35C2Client {
-	s := NewSerialImpl()
+	s := transport.NewSerialImpl()
 	return &BP35C2Client{serial: s}
 }
 

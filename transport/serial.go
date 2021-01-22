@@ -1,4 +1,4 @@
-package wisun
+package transport
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"github.com/goburrow/serial"
 )
 
-//go:generate mockgen -source serial.go -destination serial_mock.go -package wisun
+//go:generate mockgen -source serial.go -destination serial_mock.go -package transport
 
 type Serial interface {
 	Send([]byte) error

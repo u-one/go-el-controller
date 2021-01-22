@@ -5,6 +5,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
+	"github.com/u-one/go-el-controller/transport"
 )
 
 func Test_parseRXUDP(t *testing.T) {
@@ -29,7 +30,7 @@ func Test_Version(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mock := NewMockSerial(ctrl)
+	mock := transport.NewMockSerial(ctrl)
 
 	lastCmd := ""
 	respCnt := -1
