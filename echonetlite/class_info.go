@@ -93,7 +93,7 @@ func Load() (ClassInfoMap, error) {
 	path := "../../SonyCSL/ECHONETLite-ObjectDatabase/data/csv/ja"
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Println(err)
 		return nil, err
 	}
 
