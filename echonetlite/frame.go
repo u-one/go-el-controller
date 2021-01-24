@@ -60,13 +60,6 @@ func (o Object) isNodeProfile() bool {
 	return false
 }
 
-// Property represents Echonet-Lite property
-type Property struct {
-	Code byte
-	Len  int
-	Data Data
-}
-
 // Frame is Echonet-Lite frame
 type Frame struct {
 	Data       Data    // Entire Data
@@ -119,69 +112,6 @@ func ParseFrame(data []byte) (Frame, error) {
 // SuperObject is super object
 type SuperObject struct {
 	InstallLocation Location
-}
-
-// LocationCode represents location code
-type LocationCode int32
-
-// Location represents location
-type Location struct {
-	Code   LocationCode
-	Number int32
-}
-
-// LocationCodes
-const (
-	Living LocationCode = iota + 1
-	Dining
-	Kitchen
-	Bathroom
-	Lavatory
-	Washroom
-	Corridor
-	Room
-	Stairs
-	Entrance
-	Closet
-	Garden
-	Garage
-	Balcony
-	Other
-)
-
-func (l LocationCode) String() string {
-	switch l {
-	case Living:
-		return "Living"
-	case Dining:
-		return "Dining"
-	case Kitchen:
-		return "Kitchen"
-	case Bathroom:
-		return "Bathroom"
-	case Lavatory:
-		return "Lavatory"
-	case Corridor:
-		return "Corridor"
-	case Room:
-		return "Room"
-	case Stairs:
-		return "Stairs"
-	case Entrance:
-		return "Entrance"
-	case Closet:
-		return "Closet"
-	case Garden:
-		return "Garden"
-	case Garage:
-		return "Garage"
-	case Balcony:
-		return "Balcony"
-	case Other:
-		return "Other"
-	default:
-		return "unknown"
-	}
 }
 
 // AirconObject is object for aircon
@@ -328,155 +258,14 @@ func (f Frame) Print() {
 	}
 }
 
-// ESVType represnts type of ESV
-type ESVType byte
-
-// ESVTypes
-const (
-	SetI   ESVType = 0x60 // SetI
-	SetC   ESVType = 0x61 // SetC
-	Get    ESVType = 0x62 // Get
-	InfReq ESVType = 0x63 // INF_REQ
-	SetGet ESVType = 0x6E // SetGet
-
-	SetRes    ESVType = 0x71 // Set_Res
-	GetRes    ESVType = 0x72 // Get_Res
-	Inf       ESVType = 0x73 // INF
-	InfC      ESVType = 0x74 // INFC
-	InfCRes   ESVType = 0x7A // INFC_Res
-	SetGetRes ESVType = 0x7E // SetGet_Res
-
-	SetISNA   ESVType = 0x50 // SetI_SNA
-	SetCSNA   ESVType = 0x51 // SetC_SNA
-	GetSNA    ESVType = 0x52 // Get_SNA
-	InfSNA    ESVType = 0x53 // INF_SNA
-	SetGetSNA ESVType = 0x5E // SetGet_SNA
-)
-
-func (t ESVType) String() string {
-	switch t {
-	case SetI:
-		return "SetI"
-	case SetC:
-		return "SetC"
-	case Get:
-		return "Get"
-	case InfReq:
-		return "INF_REQ"
-	case SetGet:
-		return "SetGet"
-	case SetRes:
-		return "Set_Res"
-	case GetRes:
-		return "Get_Res"
-	case Inf:
-		return "INF"
-	case InfC:
-		return "INFC"
-	case InfCRes:
-		return "INFC_Res"
-	case SetGetRes:
-		return "SetGet_Res"
-	case SetISNA:
-		return "SetI_SNA"
-	case SetCSNA:
-		return "SetC_SNA"
-	case GetSNA:
-		return "Get_SNA"
-	case InfSNA:
-		return "INF_SNA"
-	case SetGetSNA:
-		return "SetGet_SNA"
-	default:
-		return "UNKNOWN" + hex.EncodeToString([]byte{byte(t)})
-	}
-}
-
 /*
 func (f Frame) String() string {
 	return hex.EncodeToString(f.Data)
 }
 */
 
-// ClassGroupCode represents class gruop code
-type ClassGroupCode byte
-
-// ClassCode represents class code
-type ClassCode byte
-
-// PropertyCode represents property code
-type PropertyCode byte
-
 // EPCCode is EPC code
 type EPCCode byte
-
-// PropertyDefs is a map EPCCode as key detail string as value
-type PropertyDefs map[EPCCode]string
-
-// definition of class group codes
-const (
-	SensorGroup         ClassGroupCode = 0x00
-	AirConditionerGroup ClassGroupCode = 0x01
-	HomeEquipmentGroup  ClassGroupCode = 0x02
-	HomeApplianceGroup  ClassGroupCode = 0x03
-	HealthCareGroup     ClassGroupCode = 0x04
-	ControllerGroup     ClassGroupCode = 0x05
-	AVGroup             ClassGroupCode = 0x06
-
-	ProfileGroup ClassGroupCode = 0x0E
-)
-
-// Profile is definition of profile object class code
-const Profile ClassCode = 0xF0
-
-// definition of class codes for AirConditionerGroup
-const (
-	HomeAirConditioner ClassCode = 0x30
-)
-
-// definition of class codes for HomeEquipmentGroup
-const (
-	LowVoltageSmartMeter ClassCode = 0x88
-)
-
-// definition of class codes for ControllerGroup
-const (
-	HandHeldDevice ClassCode = 0xFE
-	Controller     ClassCode = 0xFF
-)
-
-// definition of property codes
-const (
-	OperationStatus                PropertyCode = 0x80 // 動作状態
-	InstallationLocation           PropertyCode = 0x81 // 設置場所
-	SpecVersion                    PropertyCode = 0x82 // 規格Version情報
-	ID                             PropertyCode = 0x83 // 識別番号
-	MomentaryPowerConsumption      PropertyCode = 0x84 // 瞬間消費電力計測値
-	IntegratingPowerConsumption    PropertyCode = 0x85 // 積算消費電力計測値
-	ManufacturerErrorCode          PropertyCode = 0x86 // メーカ異常コード
-	ElectricityCurrentLimit        PropertyCode = 0x87 // 電流制限設定
-	AbnormalState                  PropertyCode = 0x88 // 異常発生状態
-	AbnormalDetail                 PropertyCode = 0x89 // 異常発生内容
-	ManufacturerCode               PropertyCode = 0x8A
-	OfficePlaceCode                PropertyCode = 0x8B
-	ProductCode                    PropertyCode = 0x8C
-	ManufacturingNumber            PropertyCode = 0x8D
-	ManufacturingDate              PropertyCode = 0x8E
-	PowerReductionState            PropertyCode = 0x8F
-	RemoteControlState             PropertyCode = 0x93
-	CurrentTime                    PropertyCode = 0x97
-	CurrentDate                    PropertyCode = 0x98
-	PowerConsumptionLimit          PropertyCode = 0x99
-	IntegratingOperatingTime       PropertyCode = 0x9A
-	SetMPropertyMap                PropertyCode = 0x9B // SetMプロパティマップ
-	GetMPropertyMap                PropertyCode = 0x9C // GetMプロパティマップ
-	StageChangeAnnouncePropertyMap PropertyCode = 0x9D // 状変アナウンスプロパティマップ
-	SetPropertyMap                 PropertyCode = 0x9E // Setプロパティマップ
-	GetPropertyMap                 PropertyCode = 0x9F // Getプロパティマップ
-
-	MeasuredRoomTemperature    PropertyCode = 0xBB
-	MeasuredOutdoorTemperature PropertyCode = 0xBE
-)
 
 // CreateInfFrame creates INF frame
 func CreateInfFrame(transid uint16) *Frame {

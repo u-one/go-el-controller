@@ -18,7 +18,7 @@ func init() {
 }
 
 var (
-	// ClassInfoDB is a map with Class as key and PropertyDefs as value
+	// ClassInfoDB is a map with Class as key and ClassInfo as value
 	// TODO: refactor
 	ClassInfoDB ClassInfoMap
 )
