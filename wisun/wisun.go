@@ -107,53 +107,83 @@ func (c BP35C2Client) SetBRouteID(id string) error {
 	return nil
 }
 
-// Scan is ..
-func (c BP35C2Client) Scan() (PanDesc, error) {
-	scan := func(duration int) bool {
-		cmd := fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)
-		c.send([]byte(cmd))
-		c.recv()
-		c.recv()
+func (c BP35C2Client) scan(duration int) bool {
+	cmd := fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)
+	c.send([]byte(cmd))
+	c.recv()
+	c.recv()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		for {
-			ch := make(chan error)
-			var data []byte
-			go func(data *[]byte) {
-				res, err := c.recv()
-				if err != nil {
-					log.Println(err)
-					ch <- err
-				}
-
-				if bytes.HasPrefix(res, []byte("EVENT 22")) {
-					log.Println("found EVENT 22")
-					ch <- nil
-				}
-				if bytes.HasPrefix(res, []byte("EVENT 20")) {
-					log.Println("found EVENT 20")
-					*data = res
-					ch <- nil
-				}
-			}(&data)
-
-			select {
-			case err := <-ch:
-				if err == nil {
-					if len(data) == 0 {
-						return false
-					}
-					return true
-				}
-			case <-ctx.Done():
-				log.Fatal(ctx.Err())
-				return false
+	for {
+		ch := make(chan error)
+		var data []byte
+		go func(data *[]byte) {
+			res, err := c.recv()
+			if err != nil {
+				log.Println(err)
+				ch <- err
 			}
+
+			if bytes.HasPrefix(res, []byte("EVENT 22")) {
+				log.Println("found EVENT 22")
+				ch <- nil
+			}
+			if bytes.HasPrefix(res, []byte("EVENT 20")) {
+				log.Println("found EVENT 20")
+				*data = res
+				ch <- nil
+			}
+		}(&data)
+
+		select {
+		case err := <-ch:
+			if err == nil {
+				if len(data) == 0 {
+					return false
+				}
+				return true
+			}
+		case <-ctx.Done():
+			log.Fatal(ctx.Err())
+			return false
 		}
 	}
+}
 
+func (c BP35C2Client) receivePanDesc() (PanDesc, error) {
+	ed := PanDesc{}
+	line, err := c.recv()
+	if err == nil && bytes.HasPrefix(line, []byte("EPANDESC")) {
+		line, err := c.recv() // Channel
+		if err != nil {
+			return PanDesc{}, fmt.Errorf("Failed to get Channel [%s]", err)
+		}
+		tokens := bytes.Split(line, []byte("Channel:"))
+		ed.Channel = string(bytes.Trim(tokens[1], "\r\n"))
+		c.recv()             // Channel Page: XX
+		line, err = c.recv() // Pan ID: XXXX
+		if err != nil {
+			return PanDesc{}, fmt.Errorf("Failed to get Pan ID [%s]", err)
+		}
+		tokens = bytes.Split(line, []byte("Pan ID:"))
+		ed.PanID = string(bytes.Trim(tokens[1], "\r\n"))
+		line, err = c.recv() // Addr:XXXXXXXXXXXXXXXX
+		if err != nil {
+			return PanDesc{}, fmt.Errorf("Failed to get Addr [%s]", err)
+		}
+		tokens = bytes.Split(line, []byte("Addr:"))
+		ed.Addr = string(bytes.Trim(tokens[1], "\r\n"))
+		c.recv() // LQI:CA
+		c.recv() // Side:X
+		c.recv() // PairID:XXXXXXXX
+	}
+	return ed, err
+}
+
+// Scan is ..
+func (c BP35C2Client) Scan() (PanDesc, error) {
 	duration := 4
 	for {
 		if duration > 8 {
@@ -161,43 +191,14 @@ func (c BP35C2Client) Scan() (PanDesc, error) {
 			break
 		}
 
-		found := scan(duration)
+		found := c.scan(duration)
 		if found {
 			break
 		}
 		duration = duration + 1
 	}
 
-	recvEPANDesc := func() (PanDesc, error) {
-		ed := PanDesc{}
-		line, err := c.recv()
-		if err == nil && bytes.HasPrefix(line, []byte("EPANDESC")) {
-			line, err := c.recv() // Channel
-			if err != nil {
-				return PanDesc{}, fmt.Errorf("Failed to get Channel [%s]", err)
-			}
-			tokens := bytes.Split(line, []byte("Channel:"))
-			ed.Channel = string(bytes.Trim(tokens[1], "\r\n"))
-			c.recv()             // Channel Page: XX
-			line, err = c.recv() // Pan ID: XXXX
-			if err != nil {
-				return PanDesc{}, fmt.Errorf("Failed to get Pan ID [%s]", err)
-			}
-			tokens = bytes.Split(line, []byte("Pan ID:"))
-			ed.PanID = string(bytes.Trim(tokens[1], "\r\n"))
-			line, err = c.recv() // Addr:XXXXXXXXXXXXXXXX
-			if err != nil {
-				return PanDesc{}, fmt.Errorf("Failed to get Addr [%s]", err)
-			}
-			tokens = bytes.Split(line, []byte("Addr:"))
-			ed.Addr = string(bytes.Trim(tokens[1], "\r\n"))
-			c.recv() // LQI:CA
-			c.recv() // Side:X
-			c.recv() // PairID:XXXXXXXX
-		}
-		return ed, err
-	}
-	ed, err := recvEPANDesc()
+	ed, err := c.receivePanDesc()
 	log.Printf("Received EPANDesc:%#v", ed)
 	return ed, err
 }
@@ -301,7 +302,7 @@ func (c *BP35C2Client) SendTo(ipv6Addr string, data []byte) ([]byte, error) {
 			if bytes.HasPrefix(res, []byte("ERXUDP")) {
 				log.Println("found ERXUDP")
 				// TODO: Trim and Append linebreak in recv(), Send() method
-				bytes.Trim(res, "\r\n")
+				res = bytes.Trim(res, "\r\n")
 				rdata, err := parseRXUDP(res)
 				return rdata, err
 			}
