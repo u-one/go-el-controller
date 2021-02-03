@@ -23,6 +23,7 @@ func (c Controller) Close() {
 	c.client.Close()
 }
 
+// Version returns software version that installed in the client
 func (c Controller) Version() error {
 	return c.client.Version()
 }

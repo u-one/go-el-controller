@@ -10,17 +10,20 @@ import (
 
 //go:generate mockgen -source serial.go -destination serial_mock.go -package transport
 
+// Serial is the interface that communicates data through serial port
 type Serial interface {
-	Send([]byte) error
-	Recv() ([]byte, error)
-	Close()
+	Send([]byte) error     // sends data
+	Recv() ([]byte, error) // receives data and returns them
+	Close()                // closes active serial connection
 }
 
+// SerialImpl is a concrete implementation of Serial interface
 type SerialImpl struct {
 	port   serial.Port
 	reader *bufio.Reader
 }
 
+// NewSerialImpl opens default serial connection and returns SerialImpl
 func NewSerialImpl() *SerialImpl {
 	config := serial.Config{
 		Address:  "/dev/ttyUSB0",
@@ -41,16 +44,19 @@ func NewSerialImpl() *SerialImpl {
 	return &SerialImpl{port: port, reader: reader}
 }
 
+// Send sends data
 func (s SerialImpl) Send(in []byte) error {
 	_, err := s.port.Write(in)
 	return err
 }
 
+// Recv receives data
 func (s SerialImpl) Recv() ([]byte, error) {
 	line, _, err := s.reader.ReadLine()
 	return line, err
 }
 
+// Close closes active connection
 func (s SerialImpl) Close() {
 	s.port.Close()
 }

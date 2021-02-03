@@ -33,6 +33,7 @@ func (c ElectricityMeterClient) Start(bRouteID, bRoutePassword string) error {
 	return nil
 }
 
+// Version requests
 func (c ElectricityMeterClient) Version() {
 	c.controller.Version()
 

@@ -57,6 +57,7 @@ type ELController struct {
 	nodeList          NodeList
 }
 
+// NewELController returns ELController
 func NewELController(exporterAddr string) (*ELController, error) {
 	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
 	if err != nil {
@@ -71,6 +72,7 @@ func NewELController(exporterAddr string) (*ELController, error) {
 	}, nil
 }
 
+// Close closes all resources open
 func (elc ELController) Close() {
 	elc.MulticastSender.Close()
 }
