@@ -3,7 +3,7 @@
 
 and prometheus exporter
 
-[![Build Status](https://travis-ci.org/u-one/go-el-controller.svg?branch=master)](https://travis-ci.org/u-one/go-el-controller)
+[![Build Status](https://travis-ci.org/u-one/go-el-controller.svg?branch=master)](https://travis-ci.org/u-one/go-el-controller) ![Go](https://github.com/u-one/go-el-controller/workflows/Go/badge.svg)
 
 
 ### Environment
