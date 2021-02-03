@@ -26,8 +26,8 @@
 on:
   release:
     types: [created]
-  push:
-    branches: [deploy-test]
+  workflow_dispatch:
+    inputs:
 
 name: Deploy to Amazon ECS
 
