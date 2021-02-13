@@ -182,7 +182,7 @@ func (elc ELController) handleResult(ctx context.Context, results <-chan transpo
 
 func (elc *ELController) sendFrame(f *echonetlite.Frame) {
 	clogger.Printf(">>>>>>>> SEND : %s\n", f)
-	elc.MulticastSender.Send([]byte(f.Data))
+	elc.MulticastSender.Send([]byte(f.Serialize()))
 	elc.tid++
 }
 
