@@ -30,23 +30,34 @@ func Test_ParseFrame(t *testing.T) {
 	log.Printf("[%v] %v\n", "", got)
 
 	want := Frame{
-		data:  Data{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00},
-		EHD:   Data{0x10, 0x81},
-		TID:   Data{0x00, 0x00},
-		EData: Data{0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00},
-		SEOJ:  Object{Data{0x05, 0xff, 0x01}},
-		DEOJ:  Object{Data{0x01, 0x30, 0x01}},
-		ESV:   ESVType(0x62),
-		OPC:   Data{0x02},
+		EHD:  Data{0x10, 0x81},
+		TID:  Data{0x00, 0x00},
+		SEOJ: Object{Data{0x05, 0xff, 0x01}},
+		DEOJ: Object{Data{0x01, 0x30, 0x01}},
+		ESV:  ESVType(0x62),
+		OPC:  0x02,
 		Properties: []Property{
 			{Code: 0xbb, Len: 0, Data: []byte{}},
 			{Code: 0xbe, Len: 0, Data: []byte{}},
 		},
 	}
+	wantData := Data{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00}
+	wantEData := Data{0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x02, 0xbb, 0x00, 0xbe, 0x00}
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
 	}
+
+	gotEData := want.EData()
+	if diff := cmp.Diff(wantEData, gotEData); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
+	gotData := want.Serialize()
+	if diff := cmp.Diff(wantData, gotData); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
 }
 
 func TestCreateAirconGetFrame(t *testing.T) {
@@ -54,14 +65,12 @@ func TestCreateAirconGetFrame(t *testing.T) {
 	got := CreateAirconGetFrame(0x0)
 
 	want := &Frame{
-		data:  Data{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00},
-		EHD:   Data{0x10, 0x81},
-		TID:   Data{0x00, 0x00},
-		EData: Data{0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00},
-		SEOJ:  Object{Data{0x05, 0xff, 0x01}},
-		DEOJ:  Object{Data{0x01, 0x30, 0x01}},
-		ESV:   ESVType(0x62),
-		OPC:   Data{0x04},
+		EHD:  Data{0x10, 0x81},
+		TID:  Data{0x00, 0x00},
+		SEOJ: Object{Data{0x05, 0xff, 0x01}},
+		DEOJ: Object{Data{0x01, 0x30, 0x01}},
+		ESV:  ESVType(0x62),
+		OPC:  0x04,
 		Properties: []Property{
 			{Code: 0x81, Len: 0, Data: []byte{}},
 			{Code: 0x83, Len: 0, Data: []byte{}},
@@ -70,7 +79,20 @@ func TestCreateAirconGetFrame(t *testing.T) {
 		},
 	}
 
+	wantData := Data{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
+	wantEData := Data{0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
+
 	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
+	gotEData := want.EData()
+	if diff := cmp.Diff(wantEData, gotEData); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
+	gotData := want.Serialize()
+	if diff := cmp.Diff(wantData, gotData); diff != "" {
 		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
 	}
 
@@ -112,14 +134,12 @@ func TestParseFrame(t *testing.T) {
 		t.Error(err)
 	}
 	want := Frame{
-		data:  toData("1081000001300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
-		EHD:   toData("1081"),
-		TID:   toData("0000"),
-		EData: toData("01300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
-		SEOJ:  Object{toData("013001")},
-		DEOJ:  Object{toData("05ff01")},
-		ESV:   GetRes,
-		OPC:   toData("04"),
+		EHD:  toData("1081"),
+		TID:  toData("0000"),
+		SEOJ: Object{toData("013001")},
+		DEOJ: Object{toData("05ff01")},
+		ESV:  GetRes,
+		OPC:  0x04,
 		Properties: []Property{
 			{Code: 0x81, Len: 1, Data: toData("41")},
 			{Code: 0x83, Len: 17, Data: toData("fe00000860f189306df500000000000000")},
@@ -133,18 +153,52 @@ func TestParseFrame(t *testing.T) {
 		},
 	}
 
+	wantData := toData("1081000001300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119")
+	wantEData := toData("01300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119")
+
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)
 	}
+
+	gotEData := want.EData()
+	if diff := cmp.Diff(wantEData, gotEData); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
+	gotData := want.Serialize()
+	if diff := cmp.Diff(wantData, gotData); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+
 }
 
 func TestNewFrame(t *testing.T) {
-	f := NewFrame(1)
+	props := []Property{}
+	props = append(props, Property{Code: 0xd5, Len: 4, Data: []byte{0x01, 0x05, 0xff, 0x01}})
 
-	got := f.data
+	f := NewFrame(1, props)
+
+	got := f.Serialize()
 	want := Data{0x10, 0x81, 0x00, 0x01, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
 
 	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("(-want +got):\n%s", diff)
+	}
+
+}
+
+func TestCreateInfFrame(t *testing.T) {
+
+	got := CreateInfFrame(1)
+
+	wantdata := []byte{0x10, 0x81, 0x00, 0x01, 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
+
+	want, err := ParseFrame(wantdata)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	if diff := cmp.Diff(want, *got); diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)
 	}
 
