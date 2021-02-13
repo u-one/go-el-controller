@@ -34,32 +34,6 @@ const (
 	ArbitraryFormat byte = 0x82
 )
 
-// Object is object
-type Object struct {
-	Data Data
-}
-
-// Class returns Class
-func (o Object) Class() Class {
-	return Class{o.Data[0], o.Data[1]}
-}
-
-func (o Object) classGroupCode() ClassGroupCode {
-	return ClassGroupCode(o.Data[0])
-}
-
-func (o Object) classCode() ClassCode {
-	return ClassCode(o.Data[1])
-}
-
-func (o Object) isNodeProfile() bool {
-	if o.Data[0] == byte(ProfileGroup) &&
-		o.Data[1] == byte(Profile) {
-		return true
-	}
-	return false
-}
-
 // Frame is Echonet-Lite frame
 type Frame struct {
 	EHD        Data    // Echonet Lite Header
@@ -73,13 +47,13 @@ type Frame struct {
 }
 
 // NewFrame retunrs Frame
-func NewFrame(transID uint16, props []Property) Frame {
+func NewFrame(transID uint16, src, dest Object, service ESVType, props []Property) Frame {
 
-	ehd := []byte{0x10, 0x81}
+	ehd := []byte{byte(EchonetLite), byte(FixedFormat)}
 	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
-	seoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
-	deoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
-	esv := ESVType(0x73)
+	seoj := src
+	deoj := dest
+	esv := service
 
 	f := Frame{EHD: ehd, TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, OPC: byte(len(props)), Properties: props}
 
@@ -117,8 +91,8 @@ func ParseFrame(data []byte) (Frame, error) {
 	EHD := frame[:2]
 	TID := frame[2:4]
 	EDATA := frame[4:]
-	SEOJ := Object{Data: EDATA[:3]}
-	DEOJ := Object{Data: EDATA[3:6]}
+	SEOJ := NewObjectFromData(EDATA[:3])
+	DEOJ := NewObjectFromData(EDATA[3:6])
 	ESV := ESVType(EDATA[6:7][0])
 	OPC := EDATA[7:8][0]
 
@@ -304,88 +278,60 @@ type EPCCode byte
 // CreateInfFrame creates INF frame
 func CreateInfFrame(transID uint16) *Frame {
 	// INF
+	src := NewObject(ProfileGroup, Profile, 0x01)
+	dest := NewObject(ProfileGroup, Profile, 0x01)
+
 	props := []Property{}
 	props = append(props, Property{Code: 0xd5, Len: 4, Data: []byte{0x01, 0x05, 0xff, 0x01}})
-	frame := NewFrame(transID, props)
+	frame := NewFrame(transID, src, dest, Inf, props)
 	return &frame
 }
 
 // CreateInfReqFrame creates INF_REQ frame
 func CreateInfReqFrame(transID uint16) *Frame {
 	// INF_REQ
-	data := []byte{0x10, 0x81, byte(transID >> 8 & 0xFF), byte(transID & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
-	frame, err := ParseFrame(data)
-	if err != nil {
-		logger.Print("Error:", err)
-		return nil
-	}
-	//logger.Print(frame)
+
+	src := NewObject(ControllerGroup, Controller, 0x01)
+	dest := NewObject(ProfileGroup, Profile, 0x01)
+
+	props := []Property{}
+	props = append(props, Property{Code: 0xd5, Len: 0, Data: []byte{}})
+	frame := NewFrame(transID, src, dest, InfReq, props)
 	return &frame
 }
 
 // CreateGetFrame creates GET frame
 func CreateGetFrame(transID uint16) *Frame {
 	// Get
-	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
-	data := []byte{0x10, 0x81, byte(transID >> 8 & 0xFF), byte(transID & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
-	frame, err := ParseFrame(data)
-	if err != nil {
-		logger.Print("Error:", err)
-		return nil
-	}
-	//logger.Print(frame)
+	src := NewObject(ControllerGroup, Controller, 0x01)
+	dest := NewObject(ProfileGroup, Profile, 0x01)
+
+	props := []Property{}
+	props = append(props, Property{Code: byte(OperationStatus), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(SpecVersion), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(NumOfInstances), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(NumOfClasses), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(InstanceListNotification), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(InstanceListS), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(ClassListS), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: 0x9f, Len: 0, Data: []byte{}})
+
+	frame := NewFrame(transID, src, dest, Get, props)
 	return &frame
 }
 
 // CreateAirconGetFrame creates GET air-con info frame
-// TODO: refactor
 func CreateAirconGetFrame(transID uint16) *Frame {
 	// Get
-	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
-	data := make([]byte, 0)
+	src := NewObject(ControllerGroup, Controller, 0x01)
+	dest := NewObject(AirConditionerGroup, HomeAirConditioner, 0x01)
 
-	ehd1 := []byte{byte(EchonetLite)} // 10
-	ehd2 := []byte{byte(FixedFormat)} // 81
-	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
+	props := []Property{}
+	props = append(props, Property{Code: byte(InstallationLocation), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(ID), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(MeasuredRoomTemperature), Len: 0, Data: []byte{}})
+	props = append(props, Property{Code: byte(MeasuredOutdoorTemperature), Len: 0, Data: []byte{}})
 
-	edata := make([]byte, 0)
-	seoj := []byte{byte(ControllerGroup), byte(Controller), 0x01}             // 05FF01
-	deoj := []byte{byte(AirConditionerGroup), byte(HomeAirConditioner), 0x01} // 013001
-	esv := []byte{byte(Get)}                                                  // 62
-
-	properties := []struct {
-		epc []byte
-		edt []byte
-	}{
-		{epc: []byte{byte(InstallationLocation)}, edt: []byte{}},       //0x81
-		{epc: []byte{byte(ID)}, edt: []byte{}},                         //0x83
-		{epc: []byte{byte(MeasuredRoomTemperature)}, edt: []byte{}},    // 0xBB
-		{epc: []byte{byte(MeasuredOutdoorTemperature)}, edt: []byte{}}, //0xBE
-	}
-
-	edata = append(edata, seoj...)
-	edata = append(edata, deoj...)
-	edata = append(edata, esv...)
-
-	opc := byte(len(properties))
-	edata = append(edata, opc)
-
-	for _, p := range properties {
-		edata = append(edata, p.epc...)
-		edata = append(edata, byte(len(p.edt)))
-		edata = append(edata, p.edt...)
-	}
-
-	data = append(data, ehd1...)
-	data = append(data, ehd2...)
-	data = append(data, tid...)
-	data = append(data, edata...)
-
-	frame, err := ParseFrame(data)
-	if err != nil {
-		logger.Print("Error:", err)
-		return nil
-	}
-	//logger.Print(frame)
+	frame := NewFrame(transID, src, dest, Get, props)
 	return &frame
 }
