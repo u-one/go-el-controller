@@ -62,7 +62,7 @@ func (o Object) isNodeProfile() bool {
 
 // Frame is Echonet-Lite frame
 type Frame struct {
-	Data       Data    // Entire Data
+	data       Data    // Entire Data
 	EHD        Data    // Echonet Lite Header
 	TID        Data    // Transaction ID
 	EData      Data    // Echonet Lite Data
@@ -104,7 +104,7 @@ func ParseFrame(data []byte) (Frame, error) {
 		epcOffset += (2 + propertyValueLen)
 	}
 
-	f := Frame{Data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}
+	f := Frame{data: frame, EHD: EHD, TID: TID, EData: EDATA, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}
 	err := f.parseFrame()
 	return f, err
 }
@@ -206,7 +206,7 @@ func (f Frame) String() string {
 	sObjInfo := ClassInfoDB.Get(f.SrcClass())
 	dObjInfo := ClassInfoDB.Get(f.DstClass())
 
-	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s](%s) DEOJ[%s](%s) ESV[%s] OPC[%s]", f.Data, f.EHD, f.TID, f.SEOJ, sObjInfo.Desc, f.DEOJ, dObjInfo.Desc, f.ESV, f.OPC)
+	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s](%s) DEOJ[%s](%s) ESV[%s] OPC[%s]", f.data, f.EHD, f.TID, f.SEOJ, sObjInfo.Desc, f.DEOJ, dObjInfo.Desc, f.ESV, f.OPC)
 	for i, p := range f.Properties {
 		desc := ""
 		if sObjInfo != nil {
@@ -230,7 +230,7 @@ func (f Frame) Print() {
 
 	if false {
 		logger.Println("============ Frame ============")
-		logger.Println(" ", f.Data)
+		logger.Println(" ", f.data)
 		logger.Println("  -----------------------------")
 		logger.Println("  EHD:", f.EHD)
 		logger.Println("  TID:", f.TID)
@@ -267,10 +267,43 @@ func (f Frame) String() string {
 // EPCCode is EPC code
 type EPCCode byte
 
+// NewFrame retunrs Frame
+func NewFrame(transID int) Frame {
+
+	ehd := []byte{0x10, 0x81}
+	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
+	seoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	deoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	esv := ESVType(0x73)
+
+	props := []Property{}
+	props = append(props, Property{Code: 0xd5, Len: 4, Data: []byte{0x01, 0x05, 0xff, 0x01}})
+
+	opc := byte(len(props)) // num of properties
+
+	eData := []byte{}
+	eData = append(eData, seoj.Data...)
+	eData = append(eData, deoj.Data...)
+	eData = append(eData, byte(esv))
+	eData = append(eData, byte(opc))
+	for _, p := range props {
+		eData = append(eData, p.Serialize()...)
+	}
+
+	frame := []byte{}
+	frame = append(frame, ehd...)
+	frame = append(frame, tid...)
+	frame = append(frame, eData...)
+
+	f := Frame{data: frame, EHD: ehd, TID: tid, EData: eData, SEOJ: seoj, DEOJ: deoj, ESV: esv, OPC: []byte{opc}, Properties: props}
+
+	return f
+}
+
 // CreateInfFrame creates INF frame
-func CreateInfFrame(transid uint16) *Frame {
+func CreateInfFrame(transID uint16) *Frame {
 	// INF
-	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
+	data := []byte{0x10, 0x81, byte(transID >> 8 & 0xFF), byte(transID & 0xFF), 0x0e, 0xf0, 0x01, 0x0e, 0xf0, 0x01, 0x73, 0x01, 0xd5, 0x04, 0x01, 0x05, 0xff, 0x01}
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
@@ -282,9 +315,9 @@ func CreateInfFrame(transid uint16) *Frame {
 }
 
 // CreateInfReqFrame creates INF_REQ frame
-func CreateInfReqFrame(transid uint16) *Frame {
+func CreateInfReqFrame(transID uint16) *Frame {
 	// INF_REQ
-	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
+	data := []byte{0x10, 0x81, byte(transID >> 8 & 0xFF), byte(transID & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x63, 0x01, 0xd5, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
 		logger.Print("Error:", err)
@@ -295,10 +328,10 @@ func CreateInfReqFrame(transid uint16) *Frame {
 }
 
 // CreateGetFrame creates GET frame
-func CreateGetFrame(transid uint16) *Frame {
+func CreateGetFrame(transID uint16) *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x01, 0xd6, 0x00}
-	data := []byte{0x10, 0x81, byte(transid >> 8 & 0xFF), byte(transid & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
+	data := []byte{0x10, 0x81, byte(transID >> 8 & 0xFF), byte(transID & 0xFF), 0x05, 0xff, 0x01, 0x0e, 0xf0, 0x01, 0x62, 0x08, 0x80, 0x00, 0x82, 0x00, 0xd3, 0x00, 0xd4, 0x00, 0xd5, 0x00, 0xd6, 0x00, 0xd7, 0x00, 0x9f, 0x00}
 	frame, err := ParseFrame(data)
 	if err != nil {
 		logger.Print("Error:", err)
@@ -310,14 +343,14 @@ func CreateGetFrame(transid uint16) *Frame {
 
 // CreateAirconGetFrame creates GET air-con info frame
 // TODO: refactor
-func CreateAirconGetFrame(transid uint16) *Frame {
+func CreateAirconGetFrame(transID uint16) *Frame {
 	// Get
 	//data := []byte{0x10, 0x81, 0x0, 0x0, 0x05, 0xff, 0x01, 0x01, 0x30, 0x01, 0x62, 0x04, 0x81, 0x00, 0x83, 0x00, 0xbb, 0x00, 0xbe, 0x00}
 	data := make([]byte, 0)
 
 	ehd1 := []byte{byte(EchonetLite)} // 10
 	ehd2 := []byte{byte(FixedFormat)} // 81
-	tid := []byte{byte(transid >> 8 & 0xFF), byte(transid & 0xFF)}
+	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
 
 	edata := make([]byte, 0)
 	seoj := []byte{byte(ControllerGroup), byte(Controller), 0x01}             // 05FF01

@@ -42,3 +42,12 @@ type Property struct {
 	Len  int
 	Data Data
 }
+
+// Serialize returns serialized data
+func (p Property) Serialize() Data {
+	d := []byte{}
+	d = append(d, p.Code)
+	d = append(d, byte(p.Len))
+	d = append(d, p.Data...)
+	return d
+}
