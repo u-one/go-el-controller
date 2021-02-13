@@ -72,6 +72,42 @@ type Frame struct {
 	Object     interface{}
 }
 
+// NewFrame retunrs Frame
+func NewFrame(transID uint16, props []Property) Frame {
+
+	ehd := []byte{0x10, 0x81}
+	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
+	seoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	deoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	esv := ESVType(0x73)
+
+	f := Frame{EHD: ehd, TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, OPC: byte(len(props)), Properties: props}
+
+	return f
+}
+
+// EData returns serialized EDATA part
+func (f Frame) EData() Data {
+	eData := []byte{}
+	eData = append(eData, f.SEOJ.Data...)
+	eData = append(eData, f.DEOJ.Data...)
+	eData = append(eData, byte(f.ESV))
+	eData = append(eData, byte(f.OPC))
+	for _, p := range f.Properties {
+		eData = append(eData, p.Serialize()...)
+	}
+	return eData
+}
+
+// Serialize returns its serialized data
+func (f Frame) Serialize() Data {
+	frame := []byte{}
+	frame = append(frame, f.EHD...)
+	frame = append(frame, f.TID...)
+	frame = append(frame, f.EData()...)
+	return frame
+}
+
 // ParseFrame returns Frame
 func ParseFrame(data []byte) (Frame, error) {
 	if len(data) < 9 {
@@ -264,42 +300,6 @@ func (f Frame) String() string {
 
 // EPCCode is EPC code
 type EPCCode byte
-
-// NewFrame retunrs Frame
-func NewFrame(transID uint16, props []Property) Frame {
-
-	ehd := []byte{0x10, 0x81}
-	tid := []byte{byte(transID >> 8 & 0xFF), byte(transID & 0xFF)}
-	seoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
-	deoj := Object{Data: []byte{0x0e, 0xf0, 0x01}}
-	esv := ESVType(0x73)
-
-	f := Frame{EHD: ehd, TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, OPC: byte(len(props)), Properties: props}
-
-	return f
-}
-
-// EData returns serialized EDATA part
-func (f Frame) EData() Data {
-	eData := []byte{}
-	eData = append(eData, f.SEOJ.Data...)
-	eData = append(eData, f.DEOJ.Data...)
-	eData = append(eData, byte(f.ESV))
-	eData = append(eData, byte(f.OPC))
-	for _, p := range f.Properties {
-		eData = append(eData, p.Serialize()...)
-	}
-	return eData
-}
-
-// Serialize returns its serialized data
-func (f Frame) Serialize() Data {
-	frame := []byte{}
-	frame = append(frame, f.EHD...)
-	frame = append(frame, f.TID...)
-	frame = append(frame, f.EData()...)
-	return frame
-}
 
 // CreateInfFrame creates INF frame
 func CreateInfFrame(transID uint16) *Frame {
