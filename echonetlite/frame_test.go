@@ -82,11 +82,6 @@ func Test_ParseFrame(t *testing.T) {
 					{Code: 0xbb, Len: 1, Data: toData(t, "1c")},
 					{Code: 0xbe, Len: 1, Data: toData(t, "19")},
 				},
-				Object: AirconObject{
-					SuperObject:  SuperObject{InstallLocation: Location{Code: Room, Number: 1}},
-					InternalTemp: 28,
-					OuterTemp:    25,
-				},
 			},
 			wantData:  toData(t, "1081000001300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
 			wantEData: toData(t, "01300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
@@ -145,6 +140,39 @@ func Test_ParseFrame(t *testing.T) {
 		})
 	}
 
+}
+
+func TestFrame_PerseProperties(t *testing.T) {
+	input := Frame{
+		EHD:  toData(t, "1081"),
+		TID:  toData(t, "0000"),
+		SEOJ: NewObjectFromData(toData(t, "013001")),
+		DEOJ: NewObjectFromData(toData(t, "05ff01")),
+		ESV:  GetRes,
+		OPC:  0x04,
+		Properties: []Property{
+			{Code: 0x81, Len: 1, Data: toData(t, "41")},
+			{Code: 0x83, Len: 17, Data: toData(t, "fe00000860f189306df500000000000000")},
+			{Code: 0xbb, Len: 1, Data: toData(t, "1c")},
+			{Code: 0xbe, Len: 1, Data: toData(t, "19")},
+		},
+	}
+
+	want := input
+	want.Object = AirconObject{
+		SuperObject:  SuperObject{InstallLocation: Location{Code: Room, Number: 1}},
+		InternalTemp: 28,
+		OuterTemp:    25,
+	}
+
+	err := input.ParseProperties()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if diff := cmp.Diff(want, input); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
 }
 
 func TestLocationCode(t *testing.T) {

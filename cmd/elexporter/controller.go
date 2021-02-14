@@ -133,6 +133,12 @@ func (elc ELController) handleMulticastResult(ctx context.Context, results <-cha
 			}
 			clogger.Printf("[%v] %s\n", result.Address, frame)
 
+			err = frame.ParseProperties()
+			if err != nil {
+				clogger.Printf("[Error] ParseProperties failed [%s]\n", err)
+				break
+			}
+
 			switch frame.ESV {
 			case echonetlite.Inf:
 				elc.nodeList.Add(result.Address, frame.SEOJ)

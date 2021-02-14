@@ -113,9 +113,43 @@ func ParseFrame(data []byte) (Frame, error) {
 	}
 
 	f := Frame{EHD: EHD, TID: TID, SEOJ: SEOJ, DEOJ: DEOJ, ESV: ESV, OPC: OPC, Properties: props}
-	err := f.parseFrame()
-	return f, err
+	return f, nil
 }
+
+// ParseProperties parses properties
+func (f *Frame) ParseProperties() error {
+	logger.Printf("ParseProperties: %v", f.Properties)
+
+	class := f.SrcClass()
+	//logger.Println("frameReceived:", class)
+
+	switch ClassGroupCode(class.ClassGroupCode) {
+	case ProfileGroup:
+		switch ClassCode(class.ClassCode) {
+		case Profile:
+			logger.Println("ノードプロファイル")
+			for _, p := range f.Properties {
+				parseNodeProfileProperty(p)
+			}
+		}
+	case AirConditionerGroup:
+		switch ClassCode(class.ClassCode) {
+		case HomeAirConditioner:
+			logger.Println("エアコン")
+			obj := AirconObject{}
+			for _, p := range f.Properties {
+				parseHomeAirConditionerProperty(p, &obj)
+			}
+			// TODO: Refactor
+			f.Object = obj
+			break
+		}
+		break
+	}
+	return nil
+}
+
+// TODO: Unify Object struct and structs below
 
 // SuperObject is super object
 type SuperObject struct {
@@ -129,134 +163,141 @@ type AirconObject struct {
 	OuterTemp    float64
 }
 
-func (f *Frame) parseFrame() error {
-
-	logger.Printf("parseFrame: %v", f.Properties)
-
-	class := f.SrcClass()
-	//logger.Println("frameReceived:", class)
-
-	for _, p := range f.Properties {
-		logger.Printf("Super Class Property Code: %x, %#v\n", p.Code, p.Data)
-		if len(p.Data) == 0 {
-			continue
-		}
-
-		switch PropertyCode(p.Code) {
-		case OperationStatus: // 0x80
-			data := p.Data[0]
-			if data == 0x30 {
-				logger.Println("ON")
-			} else if data == 0x31 {
-				logger.Println("OFF")
-			} else {
-				logger.Println("UNKNOWN")
-			}
-		case SpecVersion: // 0x82
-			logger.Printf("SpecVersion: %c", rune(p.Data[2]))
-		case ID: // 0x83
-			logger.Printf("ID: %x", p.Data)
-		case NumOfInstances:
-		case NumOfClasses:
-		case InstanceListNotification:
-		case InstanceListS:
-		case ClassListS:
-		case GetPropertyMap: //0x9F
-		}
+func parseSuperObjectProperty(p Property) bool {
+	logger.Printf("Super Class Property Code: %x, %#v\n", p.Code, p.Data)
+	if len(p.Data) == 0 {
+		return false
 	}
 
-	switch ClassGroupCode(class.ClassGroupCode) {
-	case ProfileGroup:
-		switch ClassCode(class.ClassCode) {
-		case Profile:
-			logger.Println("ノードプロファイル")
-			for _, p := range f.Properties {
-				logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
-				switch PropertyCode(p.Code) {
-				case NumOfInstances: // 0xD3
-					logger.Printf("Num of instances: %x", p.Data)
-				case NumOfClasses: // 0xD4
-					logger.Printf("Num of classes: %x", p.Data)
-				case InstanceListNotification: // 0xD5
-					var instances int
-					if len(p.Data) > 0 {
-						instances = int(p.Data[0])
-					}
-					var objCode Data
-					if len(p.Data) > 1 {
-						objCode = p.Data[1:]
-					}
-					logger.Printf("Num of notification instances: %x, Object code: %x", instances, objCode)
-				case InstanceListS: // 0xD6
-					logger.Printf("Num of instances S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
-				case ClassListS: // 0xD7
-					logger.Printf("Num of classes S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
-				}
-			}
+	switch PropertyCode(p.Code) {
+	case OperationStatus: // 0x80
+		data := p.Data[0]
+		if data == 0x30 {
+			logger.Println("ON")
+		} else if data == 0x31 {
+			logger.Println("OFF")
+		} else {
+			logger.Println("UNKNOWN")
 		}
-	case AirConditionerGroup:
-		switch ClassCode(class.ClassCode) {
-		case HomeAirConditioner:
-			logger.Println("エアコン")
-			obj := AirconObject{}
-			for _, p := range f.Properties {
-				logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
-				switch PropertyCode(p.Code) {
-				case OperationStatus:
-				case InstallationLocation:
-					if p.Len != 1 {
-						return fmt.Errorf("InstallationLocation invalid length: %d", p.Len)
-					}
-					var d byte = p.Data[0]
-					logger.Printf("%08b\n", d)
-					if d>>7 == 1 {
-						// free definition
-						logger.Println("free definition")
-						break
-					}
-					locationCode := (d >> 3) & 0x0F
-					locationNo := d & 0x07
-					obj.InstallLocation = Location{Code: LocationCode(locationCode), Number: int32(locationNo)}
-					logger.Printf("locationCode: %0b locationNo: %0b\n", locationCode, locationNo)
-				case ID:
-					if p.Len == 0 {
-						return fmt.Errorf("ID invalid length: %d", p.Len)
-					}
-					lowerCommunicationLayerID := p.Data[0]
-					switch {
-					case 0x00 == lowerCommunicationLayerID:
-					case 0xFE > lowerCommunicationLayerID:
-					case 0xFE == lowerCommunicationLayerID:
-						manufacturerCode := p.Data[1:4]
-						manufacturerID := p.Data[4:]
-						logger.Printf("メーカコード: %#v メーカID: %#v\n", manufacturerCode, manufacturerID)
-					case 0xFF == lowerCommunicationLayerID:
-					}
-				case MeasuredRoomTemperature:
-					if p.Len != 1 {
-						return fmt.Errorf("MeasuredRoomTemperature invalid length: %d", p.Len)
-					}
-					temp := int(p.Data[0])
-					obj.InternalTemp = float64(temp)
-					logger.Printf("室温:%d℃\n", temp)
-					break
-				case MeasuredOutdoorTemperature:
-					if p.Len != 1 {
-						return fmt.Errorf("MeasuredOutdoorTemperature invalid length: %d", p.Len)
-					}
-					temp := int(p.Data[0])
-					obj.OuterTemp = float64(temp)
-					logger.Printf("外気温:%d℃\n", temp)
-					break
-				}
-			}
-			f.Object = obj
-			break
-		}
-		break
+		return true
+	case SpecVersion: // 0x82
+		logger.Printf("SpecVersion: %c", rune(p.Data[2]))
+		return true
+	case ID: // 0x83
+		logger.Printf("ID: %x", p.Data)
+		return true
+	case NumOfInstances:
+		return true
+	case NumOfClasses:
+		return true
+	case InstanceListNotification:
+		return true
+	case InstanceListS:
+		return true
+	case ClassListS:
+		return true
+	case GetPropertyMap: //0x9F
+		return true
 	}
-	return nil
+	return false
+}
 
+func parseNodeProfileProperty(p Property) bool {
+	if parseSuperObjectProperty(p) {
+		return true
+	}
+
+	logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
+	switch PropertyCode(p.Code) {
+	case NumOfInstances: // 0xD3
+		logger.Printf("Num of instances: %x", p.Data)
+		return true
+	case NumOfClasses: // 0xD4
+		logger.Printf("Num of classes: %x", p.Data)
+		return true
+	case InstanceListNotification: // 0xD5
+		var instances int
+		if len(p.Data) > 0 {
+			instances = int(p.Data[0])
+		}
+		var objCode Data
+		if len(p.Data) > 1 {
+			objCode = p.Data[1:]
+		}
+		logger.Printf("Num of notification instances: %x, Object code: %x", instances, objCode)
+		return true
+	case InstanceListS: // 0xD6
+		logger.Printf("Num of instances S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
+		return true
+	case ClassListS: // 0xD7
+		logger.Printf("Num of classes S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
+		return true
+	}
+	return false
+}
+
+func parseHomeAirConditionerProperty(p Property, obj *AirconObject) bool {
+	if parseSuperObjectProperty(p) {
+		return true
+	}
+
+	logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
+	switch PropertyCode(p.Code) {
+	case OperationStatus:
+		return true
+	case InstallationLocation:
+		if p.Len != 1 {
+			logger.Printf("[Error] InstallationLocation invalid length: %d", p.Len)
+			return true
+		}
+		var d byte = p.Data[0]
+		logger.Printf("%08b\n", d)
+		if d>>7 == 1 {
+			// free definition
+			logger.Println("free definition")
+			return true
+		}
+		locationCode := (d >> 3) & 0x0F
+		locationNo := d & 0x07
+		obj.InstallLocation = Location{Code: LocationCode(locationCode), Number: int32(locationNo)}
+		logger.Printf("locationCode: %0b locationNo: %0b\n", locationCode, locationNo)
+		return true
+	case ID:
+		if p.Len == 0 {
+			logger.Printf("[Error] ID invalid length: %d", p.Len)
+			return true
+		}
+		lowerCommunicationLayerID := p.Data[0]
+		switch {
+		case 0x00 == lowerCommunicationLayerID:
+		case 0xFE > lowerCommunicationLayerID:
+		case 0xFE == lowerCommunicationLayerID:
+			manufacturerCode := p.Data[1:4]
+			manufacturerID := p.Data[4:]
+			logger.Printf("メーカコード: %#v メーカID: %#v\n", manufacturerCode, manufacturerID)
+		case 0xFF == lowerCommunicationLayerID:
+		}
+		return true
+	case MeasuredRoomTemperature:
+		if p.Len != 1 {
+			logger.Printf("[Error] MeasuredRoomTemperature invalid length: %d", p.Len)
+			return true
+		}
+		temp := int(p.Data[0])
+		obj.InternalTemp = float64(temp)
+		logger.Printf("室温:%d℃\n", temp)
+		return true
+	case MeasuredOutdoorTemperature:
+		if p.Len != 1 {
+			logger.Printf("[Error] MeasuredOutdoorTemperature invalid length: %d", p.Len)
+			return true
+		}
+		temp := int(p.Data[0])
+		obj.OuterTemp = float64(temp)
+		logger.Printf("外気温:%d℃\n", temp)
+		return true
+	}
+	return false
 }
 
 // SrcClass returns src class
