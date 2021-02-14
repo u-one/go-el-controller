@@ -5,7 +5,11 @@ type PropertyCode byte
 
 // definition of property codes
 const (
+	// プロファイルオブジェクトスーパークラス
+	OperationStatus                PropertyCode = 0x80 // 動作状態
 	InstallationLocation           PropertyCode = 0x81 // 設置場所
+	SpecVersion                    PropertyCode = 0x82 // 規格Version情報
+	ID                             PropertyCode = 0x83 // 識別番号
 	MomentaryPowerConsumption      PropertyCode = 0x84 // 瞬間消費電力計測値
 	IntegratingPowerConsumption    PropertyCode = 0x85 // 積算消費電力計測値
 	ManufacturerErrorCode          PropertyCode = 0x86 // メーカ異常コード
@@ -29,19 +33,17 @@ const (
 	SetPropertyMap                 PropertyCode = 0x9E // Setプロパティマップ
 	GetPropertyMap                 PropertyCode = 0x9F // Getプロパティマップ
 
-	MeasuredRoomTemperature    PropertyCode = 0xBB
-	MeasuredOutdoorTemperature PropertyCode = 0xBE
-
 	// ノードプロファイルクラス
 	// Class Group Code: 0x0E, Class Code: 0xF0
-	OperationStatus          PropertyCode = 0x80 // 動作状態
-	SpecVersion              PropertyCode = 0x82 // 規格Version情報
-	ID                       PropertyCode = 0x83 // 識別番号
 	NumOfInstances           PropertyCode = 0xD3 // 自ノードインスタンス数
 	NumOfClasses             PropertyCode = 0xD4 // 自ノードクラス数
 	InstanceListNotification PropertyCode = 0xD5 // インスタンスリスト通知
 	InstanceListS            PropertyCode = 0xD6 // 自ノードインスタンスリストS
 	ClassListS               PropertyCode = 0xD7 // 自ノードクラスリストS
+
+	// 家庭用エアコンクラス
+	MeasuredRoomTemperature    PropertyCode = 0xBB
+	MeasuredOutdoorTemperature PropertyCode = 0xBE
 
 	// 低圧スマート電力量メータクラス
 	// Class Group Code: 0x02, Class Code: 0x88

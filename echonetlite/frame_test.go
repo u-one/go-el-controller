@@ -91,6 +91,30 @@ func Test_ParseFrame(t *testing.T) {
 			wantData:  toData(t, "1081000001300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
 			wantEData: toData(t, "01300105ff0172048101418311fe00000860f189306df500000000000000bb011cbe0119"),
 		},
+		{
+			name:  "test3",
+			input: toByteArray(t, "108100020ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7"),
+			wantFrame: Frame{
+				EHD:  toData(t, "1081"),
+				TID:  toData(t, "0002"),
+				SEOJ: NewObjectFromData(toData(t, "0ef001")),
+				DEOJ: NewObjectFromData(toData(t, "05ff01")),
+				ESV:  GetSNA,
+				OPC:  0x08,
+				Properties: []Property{
+					{Code: 0x80, Len: 1, Data: toData(t, "30")},
+					{Code: 0x82, Len: 4, Data: toData(t, "010c0100")},
+					{Code: 0xd3, Len: 3, Data: toData(t, "000001")},
+					{Code: 0xd4, Len: 2, Data: toData(t, "0002")},
+					{Code: 0xd5, Len: 0, Data: toData(t, "")},
+					{Code: 0xd6, Len: 4, Data: toData(t, "01013001")},
+					{Code: 0xd7, Len: 3, Data: toData(t, "010130")},
+					{Code: 0x9f, Len: 14, Data: toData(t, "0d808283898a9d9e9fbfd3d4d6d7")},
+				},
+			},
+			wantData:  toData(t, "108100020ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7"),
+			wantEData: toData(t, "0ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7"),
+		},
 	}
 
 	for _, tc := range testcases {

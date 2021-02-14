@@ -130,10 +130,70 @@ type AirconObject struct {
 }
 
 func (f *Frame) parseFrame() error {
+
+	logger.Printf("parseFrame: %v", f.Properties)
+
 	class := f.SrcClass()
 	//logger.Println("frameReceived:", class)
 
+	for _, p := range f.Properties {
+		logger.Printf("Super Class Property Code: %x, %#v\n", p.Code, p.Data)
+		if len(p.Data) == 0 {
+			continue
+		}
+
+		switch PropertyCode(p.Code) {
+		case OperationStatus: // 0x80
+			data := p.Data[0]
+			if data == 0x30 {
+				logger.Println("ON")
+			} else if data == 0x31 {
+				logger.Println("OFF")
+			} else {
+				logger.Println("UNKNOWN")
+			}
+		case SpecVersion: // 0x82
+			logger.Printf("SpecVersion: %c", rune(p.Data[2]))
+		case ID: // 0x83
+			logger.Printf("ID: %x", p.Data)
+		case NumOfInstances:
+		case NumOfClasses:
+		case InstanceListNotification:
+		case InstanceListS:
+		case ClassListS:
+		case GetPropertyMap: //0x9F
+		}
+	}
+
 	switch ClassGroupCode(class.ClassGroupCode) {
+	case ProfileGroup:
+		switch ClassCode(class.ClassCode) {
+		case Profile:
+			logger.Println("ノードプロファイル")
+			for _, p := range f.Properties {
+				logger.Printf("Property Code: %x, %#v\n", p.Code, p.Data)
+				switch PropertyCode(p.Code) {
+				case NumOfInstances: // 0xD3
+					logger.Printf("Num of instances: %x", p.Data)
+				case NumOfClasses: // 0xD4
+					logger.Printf("Num of classes: %x", p.Data)
+				case InstanceListNotification: // 0xD5
+					var instances int
+					if len(p.Data) > 0 {
+						instances = int(p.Data[0])
+					}
+					var objCode Data
+					if len(p.Data) > 1 {
+						objCode = p.Data[1:]
+					}
+					logger.Printf("Num of notification instances: %x, Object code: %x", instances, objCode)
+				case InstanceListS: // 0xD6
+					logger.Printf("Num of instances S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
+				case ClassListS: // 0xD7
+					logger.Printf("Num of classes S: %x, Object code: %v", p.Data[0], p.Data[1:len(p.Data)])
+				}
+			}
+		}
 	case AirConditionerGroup:
 		switch ClassCode(class.ClassCode) {
 		case HomeAirConditioner:
