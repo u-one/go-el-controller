@@ -16,8 +16,22 @@ jobs:
       with:
         go-version: 1.15
 
+    - name: Set up gox
+      run: go get github.com/mitchellh/gox
+
     - name: Build
       run: go build -v ./...
 
     - name: Test
       run: go test -v ./...
+
+    - name: Cross build
+      run: |
+          gox -osarch="linux/arm linux/amd64 darwin/amd64 windows/amd64" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
+
+    - name: Upload
+      uses: actions/upload-artifact@v2
+      with:
+          name: elexporter
+          path: ./elexporter_*
+
