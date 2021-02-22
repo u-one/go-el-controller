@@ -49,4 +49,4 @@ jobs:
 
     - name: Deploy
       run: |
-        aws ssm send-command --document-name "AWS-RunRemoteScript" --instance-ids "mi-02c2491b5bdd93c85" --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"u-one\", \"repository\":\"go-el-controller\", \"path\": \"deployments\"}"],"commandLine":["deploy-pi.sh"]}'
+        aws ssm send-command --document-name "AWS-RunRemoteScript" --instance-ids "mi-000b9eb42911d6950" --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"u-one\", \"repository\":\"go-el-controller\", \"path\": \"deployments\"}"],"commandLine":["deploy-pi.sh"]}'
