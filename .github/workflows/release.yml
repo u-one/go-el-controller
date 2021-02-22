@@ -19,15 +19,10 @@ jobs:
     - name: Set up gox
       run: go get github.com/mitchellh/gox
 
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
-
     - name: Cross build
       run: |
-          gox -osarch="linux/arm linux/amd64 darwin/amd64 windows/amd64" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
+          #gox -osarch="linux/arm linux/amd64 darwin/amd64 windows/amd64" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
+          gox -osarch="linux/arm" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
 
     - name: Upload
       uses: actions/upload-artifact@v2
@@ -35,3 +30,21 @@ jobs:
           name: elexporter
           path: ./elexporter_*
 
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          upload_url: ${{ steps.create_release.outputs.upload.url }}
+          asset_path: ./elexporter_linux_arm
+          asset_name: elexporter_linux_arm
