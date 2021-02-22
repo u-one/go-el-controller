@@ -103,10 +103,10 @@ func (elc ELController) Start(ctx context.Context) {
 	mch := elc.MulticastReceiver.Start(ctx, MulticastIP, Port)
 	go elc.handleMulticastResult(ctx, mch)
 
+	elc.startExporter(ctx)
+
 	elc.startSequence(ctx)
 	elc.sendLoop(ctx)
-
-	elc.startExporter(ctx)
 
 	//clogger.Println("wait for read done")
 	//wg.Wait()
