@@ -20,9 +20,13 @@ jobs:
       run: go get github.com/mitchellh/gox
 
     - name: Cross build
+      id: build
       run: |
+          DATE=`date +'%Y%m%d%H%M%S'`
+          VER=`date +'%Y%m%d%H%M%S'`-`git rev-parse --short HEAD`
+          echo "::set-output name=RELEASE_VER::${VER}"
           #gox -osarch="linux/arm linux/amd64 darwin/amd64 windows/amd64" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
-          gox -osarch="linux/arm" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
+          gox -osarch="linux/arm" -ldflags "-X main.version=${VER}" ./cmd/elexporter/
 
     - name: Upload
       uses: actions/upload-artifact@v2
@@ -31,12 +35,13 @@ jobs:
           path: ./elexporter_*
 
     - name: Create Release
+      id: create_release
       uses: actions/create-release@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ steps.build.outputs.RELEASE_VER }}
+          release_name: Release ${{ steps.build.outputs.RELEASE_VER }}
           draft: false
           prerelease: false
 
@@ -45,6 +50,7 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-          upload_url: ${{ steps.create_release.outputs.upload.url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./elexporter_linux_arm
           asset_name: elexporter_linux_arm
+          asset_content_type: application/octet-stream
