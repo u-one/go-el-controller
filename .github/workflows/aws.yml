@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
 
-name: Deploy to Amazon ECS
+name: Deploy to Raspberry Pi
 
 jobs:
   deploy:
