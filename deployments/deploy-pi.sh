@@ -9,7 +9,12 @@ wget -q $url
 
 chmod +x ./elexporter_linux_arm
 
-pkill elexporter
+DIR=/opt/u-one/el-exporter
 
-nohup ./elexporter_linux_arm &
+mkdir -p $DIR
+
+mv elexporter_linux_arm $DIR/elexporter
+mv elexporter.service /etc/systemd/system/
+
+systemctl enable elexporter.service
 

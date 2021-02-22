@@ -1,0 +1,8 @@
+[Unit]
+Description=EchonetLite exporter
+
+[Service]
+ExecStart=/opt/u-one/el-exporter/elexporter
+
+[Install]
+WantedBy=multi-user.target
