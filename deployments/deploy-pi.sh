@@ -7,6 +7,8 @@ url=`curl https://api.github.com/repos/u-one/go-el-controller/releases/latest | 
 echo $url 
 wget $url
 
+chmod +x elexporter_linux_arm
+
 pkill elexporter
 
 nohup ./elexporter_linux_arm &
