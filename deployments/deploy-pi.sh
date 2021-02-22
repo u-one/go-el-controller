@@ -14,7 +14,7 @@ DIR=/opt/u-one/el-exporter
 mkdir -p $DIR
 
 mv elexporter_linux_arm $DIR/elexporter
-mv elexporter.service /etc/systemd/system/
+mv el-exporter.service /etc/systemd/system/
 
-systemctl enable elexporter.service
+systemctl enable el-exporter.service
 
