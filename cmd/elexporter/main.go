@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/u-one/go-el-controller/echonetlite"
 )
@@ -16,10 +17,29 @@ var version string
 
 var exporterAddr = flag.String("listen-address", ":8083", "The address to listen on for HTTP requests.")
 
+var (
+	verCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "home",
+			Subsystem: "elexporter",
+			Name:      "version",
+			Help:      "app version",
+		},
+		[]string{
+			"version",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(verCounter)
+}
+
 func main() {
 	flag.Parse()
 
 	fmt.Printf("version: %s\n", version)
+	verCounter.WithLabelValues(version).Inc()
 
 	var err error
 	// TODO: refactor
