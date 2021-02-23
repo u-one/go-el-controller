@@ -38,16 +38,16 @@ func main() {
 		defer close(ch)
 		server := http.NewServeMux()
 		server.Handle("/metrics", promhttp.Handler())
-		clogger.Println("startExporter: ", *exporterAddr)
+		log.Println("startExporter: ", *exporterAddr)
 		http.Handle("/metrics", promhttp.Handler())
 		select {
 		case ch <- http.ListenAndServe(*exporterAddr, server):
 		case <-ctx.Done():
 		}
-		clogger.Println("exporter finished")
+		log.Println("exporter finished")
 	}()
 
-	elc, err := NewControllerNode()
+	elc, err := echonetlite.NewControllerNode()
 	if err != nil {
 		log.Println(err)
 		return
@@ -55,7 +55,7 @@ func main() {
 	elc.Start(ctx)
 	defer elc.Close()
 
-	clogger.Println("start sendLoop")
+	log.Println("start sendLoop")
 
 	func() {
 		t := time.NewTicker(30 * time.Second)

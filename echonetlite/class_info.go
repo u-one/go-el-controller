@@ -10,13 +10,6 @@ import (
 	"strings"
 )
 
-var clogger *log.Logger
-
-func init() {
-	//clogger = log.New(os.Stdout, "[ClassInfo]", log.LstdFlags)
-	clogger = log.New(ioutil.Discard, "[ClassInfo]", log.LstdFlags)
-}
-
 var (
 	// ClassInfoDB is a map with Class as key and ClassInfo as value
 	// TODO: refactor
@@ -46,7 +39,7 @@ type Class struct {
 
 // NewClass returns new instance of Class
 func NewClass(o Object) Class {
-	clogger.Println("NewClass ClassGroup code:", o.classGroupCode(), " Class code:", o.classCode())
+	log.Println("[ClassInfo]NewClass ClassGroup code:", o.classGroupCode(), " Class code:", o.classCode())
 	return Class{
 		ClassGroupCode: byte(o.classGroupCode()),
 		ClassCode:      byte(o.classCode()),
@@ -55,7 +48,7 @@ func NewClass(o Object) Class {
 
 // NewClassWithCode returns new instance of Class
 func NewClassWithCode(cgc ClassGroupCode, cc ClassCode) Class {
-	clogger.Println("NewClass ClassGroup code:", cgc, " Class code:", cc)
+	log.Println("[ClassInfo]NewClass ClassGroup code:", cgc, " Class code:", cc)
 	return Class{
 		ClassGroupCode: byte(cgc),
 		ClassCode:      byte(cc),

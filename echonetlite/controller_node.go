@@ -1,4 +1,4 @@
-package main
+package echonetlite
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/transport"
 )
 
@@ -76,7 +75,7 @@ func (elc ControllerNode) Close() {
 type NodeList map[string]Node
 
 // Add adds Node
-func (nlist *NodeList) Add(addr string, obj echonetlite.Object) {
+func (nlist *NodeList) Add(addr string, obj Object) {
 	if _, ok := (*nlist)[addr]; !ok {
 		(*nlist)[addr] = Node{}
 	}
@@ -84,7 +83,7 @@ func (nlist *NodeList) Add(addr string, obj echonetlite.Object) {
 
 // Node represents a node profile object
 type Node struct {
-	Devices []echonetlite.Object
+	Devices []Object
 }
 
 // Start starts controller
@@ -144,7 +143,7 @@ func (elc ControllerNode) handleUnicastResult(ctx context.Context, results <-cha
 }
 
 func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveResult) error {
-	frame, err := echonetlite.ParseFrame(recv.Data)
+	frame, err := ParseFrame(recv.Data)
 	if err != nil {
 		return fmt.Errorf("parse failed: %w", err)
 	}
@@ -156,14 +155,14 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	}
 
 	switch frame.ESV {
-	case echonetlite.Inf:
+	case Inf:
 		elc.nodeList.Add(recv.Address, frame.SEOJ)
 		//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
 		//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
 
 	default:
 		switch obj := frame.Object.(type) {
-		case echonetlite.AirconObject:
+		case AirconObject:
 			lc := obj.InstallLocation.Code
 			ln := obj.InstallLocation.Number
 			loc := lc.String()
@@ -178,22 +177,22 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	return nil
 }
 
-func (elc *ControllerNode) sendFrame(f *echonetlite.Frame) {
+func (elc *ControllerNode) sendFrame(f *Frame) {
 	clogger.Printf(">>>>>>>> SEND : %s\n", f)
 	elc.MulticastSender.Send([]byte(f.Serialize()))
 	elc.tid++
 }
 
 func (elc *ControllerNode) startSequence(ctx context.Context) {
-	f := echonetlite.CreateInfFrame(elc.tid)
+	f := CreateInfFrame(elc.tid)
 	elc.sendFrame(f)
 
 	// ver.1.0
-	f = echonetlite.CreateInfReqFrame(elc.tid)
+	f = CreateInfReqFrame(elc.tid)
 	elc.sendFrame(f)
 
 	// ver.1.1
-	f = echonetlite.CreateGetFrame(elc.tid)
+	f = CreateGetFrame(elc.tid)
 	elc.sendFrame(f)
 
 	time.Sleep(time.Second * 3)
@@ -201,6 +200,6 @@ func (elc *ControllerNode) startSequence(ctx context.Context) {
 
 // RequestAirConState sends request to get air conditioner states
 func (elc *ControllerNode) RequestAirConState() {
-	f := echonetlite.CreateAirconGetFrame(elc.tid)
+	f := CreateAirconGetFrame(elc.tid)
 	elc.sendFrame(f)
 }
