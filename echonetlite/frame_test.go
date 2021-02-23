@@ -158,19 +158,18 @@ func TestFrame_PerseProperties(t *testing.T) {
 		},
 	}
 
-	want := input
-	want.Object = AirconObject{
+	want := AirconObject{
 		SuperObject:  SuperObject{InstallLocation: Location{Code: Room, Number: 1}},
 		InternalTemp: 28,
 		OuterTemp:    25,
 	}
 
-	err := input.ParseProperties()
+	got, err := parseProperties(input.SrcClass(), input.Properties)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if diff := cmp.Diff(want, input); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
 	}
 }

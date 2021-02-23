@@ -43,7 +43,6 @@ type Frame struct {
 	ESV        ESVType // Echonet Lite Service
 	OPC        byte    // Num of Properties
 	Properties []Property
-	Object     interface{}
 }
 
 // NewFrame retunrs Frame
@@ -116,37 +115,33 @@ func ParseFrame(data []byte) (Frame, error) {
 	return f, nil
 }
 
-// ParseProperties parses properties
-func (f *Frame) ParseProperties() error {
-	logger.Printf("ParseProperties: %v", f.Properties)
-
-	class := f.SrcClass()
-	//logger.Println("frameReceived:", class)
+// parseProperties parses properties
+func parseProperties(class Class, properties []Property) (interface{}, error) {
+	logger.Printf("ParseProperties: %v", properties)
 
 	switch ClassGroupCode(class.ClassGroupCode) {
 	case ProfileGroup:
 		switch ClassCode(class.ClassCode) {
 		case Profile:
 			logger.Println("ノードプロファイル")
-			for _, p := range f.Properties {
+			for _, p := range properties {
 				parseNodeProfileProperty(p)
 			}
+			return nil, nil
 		}
 	case AirConditionerGroup:
 		switch ClassCode(class.ClassCode) {
 		case HomeAirConditioner:
 			logger.Println("エアコン")
 			obj := AirconObject{}
-			for _, p := range f.Properties {
+			for _, p := range properties {
 				parseHomeAirConditionerProperty(p, &obj)
 			}
-			// TODO: Refactor
-			f.Object = obj
-			break
+			return obj, nil
 		}
 		break
 	}
-	return nil
+	return nil, nil
 }
 
 // TODO: Unify Object struct and structs below
