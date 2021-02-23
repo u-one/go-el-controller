@@ -149,6 +149,17 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	}
 	clogger.Printf("[%v] %s\n", recv.Address, frame)
 
+	var targetClass Class
+	if frame.ESV.isResponseOrNotification() {
+		targetClass = frame.SrcClass()
+	} else {
+		targetClass = frame.DstClass()
+	}
+	obj, err := parseProperties(targetClass, frame.Properties)
+	if err != nil {
+		return fmt.Errorf("ParseProperties failed: %w", err)
+	}
+
 	switch frame.ESV {
 	// 要求
 	case SetI, // プロパティ値書き込み(応答不要)
@@ -159,11 +170,6 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	// 応答・通知
 	case SetRes: // プロパティ値書き込み
 	case GetRes: // プロパティ値読み出し応答
-		class := frame.SrcClass()
-		obj, err := parseProperties(class, frame.Properties)
-		if err != nil {
-			return fmt.Errorf("ParseProperties failed: %w", err)
-		}
 		switch obj.(type) {
 		case AirconObject:
 			o := obj.(AirconObject)
@@ -188,6 +194,7 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	case SetISNA: //
 	case SetCSNA: //
 	case GetSNA: //
+	//[Controller]2021/02/23 16:58:06 [192.168.50.102] 108100020ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7 EHD[1081] TID[0002] SEOJ[{0ef001}](unknown) DEOJ[{05ff01}](unknown) ESV[Get_SNA] OPC[8] EPC0[80]() PDC0[1] EDT0[30] EPC1[82]() PDC1[4] EDT1[010c0100] EPC2[d3]() PDC2[3] EDT2[000001] EPC3[d4]() PDC3[2] EDT3[0002] EPC4[d5]() PDC4[0] EDT4[] EPC5[d6]() PDC5[4] EDT5[01013001] EPC6[d7]() PDC6[3] EDT6[010130] EPC7[9f]() PDC7[14] EDT7[0d808283898a9d9e9fbfd3d4d6d7]
 	case InfSNA: //
 	case SetGetSNA: //
 	}
@@ -201,6 +208,8 @@ func (elc *ControllerNode) sendFrame(f *Frame) {
 }
 
 func (elc *ControllerNode) startSequence(ctx context.Context) {
+	clogger.Println("Start Sequnce Begin")
+
 	f := CreateInfFrame(elc.tid)
 	elc.sendFrame(f)
 
@@ -213,6 +222,7 @@ func (elc *ControllerNode) startSequence(ctx context.Context) {
 	elc.sendFrame(f)
 
 	time.Sleep(time.Second * 3)
+	clogger.Println("Start Sequnce End")
 }
 
 // RequestAirConState sends request to get air conditioner states
