@@ -44,8 +44,8 @@ const (
 	Port = ":3610"
 )
 
-// ELController is ECHONETLite controller
-type ELController struct {
+// ControllerNode is ECHONETLite controller
+type ControllerNode struct {
 	MulticastReceiver transport.MulticastReceiver
 	UnicastReceiver   transport.UnicastReceiver
 	MulticastSender   transport.MulticastSender
@@ -53,14 +53,14 @@ type ELController struct {
 	nodeList          NodeList
 }
 
-// NewELController returns ELController
-func NewELController() (*ELController, error) {
+// NewControllerNode returns ControllerNode
+func NewControllerNode() (*ControllerNode, error) {
 	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
 	if err != nil {
 		log.Println(err)
-		return &ELController{}, err
+		return &ControllerNode{}, err
 	}
-	return &ELController{
+	return &ControllerNode{
 		MulticastReceiver: &transport.UDPMulticastReceiver{},
 		MulticastSender:   ms,
 		UnicastReceiver:   &transport.UDPUnicastReceiver{},
@@ -68,7 +68,7 @@ func NewELController() (*ELController, error) {
 }
 
 // Close closes all resources open
-func (elc ELController) Close() {
+func (elc ControllerNode) Close() {
 	elc.MulticastSender.Close()
 }
 
@@ -88,7 +88,7 @@ type Node struct {
 }
 
 // Start starts controller
-func (elc ELController) Start(ctx context.Context) {
+func (elc ControllerNode) Start(ctx context.Context) {
 	elc.tid = 0
 	elc.nodeList = make(NodeList)
 
@@ -101,7 +101,7 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.startSequence(ctx)
 }
 
-func (elc ELController) handleMulticastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
+func (elc ControllerNode) handleMulticastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -122,7 +122,7 @@ func (elc ELController) handleMulticastResult(ctx context.Context, results <-cha
 	}
 }
 
-func (elc ELController) handleUnicastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
+func (elc ControllerNode) handleUnicastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -143,7 +143,7 @@ func (elc ELController) handleUnicastResult(ctx context.Context, results <-chan 
 	}
 }
 
-func (elc ELController) onReceive(ctx context.Context, recv transport.ReceiveResult) error {
+func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveResult) error {
 	frame, err := echonetlite.ParseFrame(recv.Data)
 	if err != nil {
 		return fmt.Errorf("parse failed: %w", err)
@@ -178,13 +178,13 @@ func (elc ELController) onReceive(ctx context.Context, recv transport.ReceiveRes
 	return nil
 }
 
-func (elc *ELController) sendFrame(f *echonetlite.Frame) {
+func (elc *ControllerNode) sendFrame(f *echonetlite.Frame) {
 	clogger.Printf(">>>>>>>> SEND : %s\n", f)
 	elc.MulticastSender.Send([]byte(f.Serialize()))
 	elc.tid++
 }
 
-func (elc *ELController) startSequence(ctx context.Context) {
+func (elc *ControllerNode) startSequence(ctx context.Context) {
 	f := echonetlite.CreateInfFrame(elc.tid)
 	elc.sendFrame(f)
 
@@ -200,7 +200,7 @@ func (elc *ELController) startSequence(ctx context.Context) {
 }
 
 // RequestAirConState sends request to get air conditioner states
-func (elc *ELController) RequestAirConState() {
+func (elc *ControllerNode) RequestAirConState() {
 	f := echonetlite.CreateAirconGetFrame(elc.tid)
 	elc.sendFrame(f)
 }

@@ -31,7 +31,7 @@ func TestController(t *testing.T) {
 	r.EXPECT().Start(gomock.Any(), "224.0.23.0", ":3610").Return(mch)
 	ur.EXPECT().Start(gomock.Any(), ":3610").Return(uch)
 
-	c := ELController{
+	c := ControllerNode{
 		MulticastReceiver: r,
 		MulticastSender:   s,
 		UnicastReceiver:   ur,
@@ -66,7 +66,6 @@ func TestController(t *testing.T) {
 		}
 		state++
 	})
-
 
 	s.EXPECT().Send(gomock.Any()).Do(func(indata []byte) {
 		fmt.Println("aircongetFrame sent", state)

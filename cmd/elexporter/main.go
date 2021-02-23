@@ -47,7 +47,7 @@ func main() {
 		clogger.Println("exporter finished")
 	}()
 
-	elc, err := NewELController()
+	elc, err := NewControllerNode()
 	if err != nil {
 		log.Println(err)
 		return
