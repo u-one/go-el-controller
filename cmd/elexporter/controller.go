@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/transport"
 )
@@ -51,14 +49,12 @@ type ELController struct {
 	MulticastReceiver transport.MulticastReceiver
 	UnicastReceiver   transport.UnicastReceiver
 	MulticastSender   transport.MulticastSender
-	ExporterAddr      string
-	Server            *http.ServeMux
 	tid               uint16
 	nodeList          NodeList
 }
 
 // NewELController returns ELController
-func NewELController(exporterAddr string) (*ELController, error) {
+func NewELController() (*ELController, error) {
 	ms, err := transport.NewUDPMulticastSender(MulticastIP, Port)
 	if err != nil {
 		log.Println(err)
@@ -68,7 +64,6 @@ func NewELController(exporterAddr string) (*ELController, error) {
 		MulticastReceiver: &transport.UDPMulticastReceiver{},
 		MulticastSender:   ms,
 		UnicastReceiver:   &transport.UDPUnicastReceiver{},
-		ExporterAddr:      exporterAddr,
 	}, nil
 }
 
@@ -98,20 +93,12 @@ func (elc ELController) Start(ctx context.Context) {
 	elc.nodeList = make(NodeList)
 
 	sch := elc.UnicastReceiver.Start(ctx, Port)
-	go elc.handleResult(ctx, sch)
+	go elc.handleUnicastResult(ctx, sch)
 
 	mch := elc.MulticastReceiver.Start(ctx, MulticastIP, Port)
 	go elc.handleMulticastResult(ctx, mch)
 
-	elc.startExporter(ctx)
-
 	elc.startSequence(ctx)
-	elc.sendLoop(ctx)
-
-	//clogger.Println("wait for read done")
-	//wg.Wait()
-	//clogger.Println("finish ")
-
 }
 
 func (elc ELController) handleMulticastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
@@ -126,44 +113,16 @@ func (elc ELController) handleMulticastResult(ctx context.Context, results <-cha
 				break
 			}
 			clogger.Printf("<<<<<<<< [%v] MULTI CAST RECEIVE: ", result.Address)
-			frame, err := echonetlite.ParseFrame(result.Data)
+			err := elc.onReceive(ctx, result)
 			if err != nil {
-				clogger.Printf("[Error] parse failed [%s]\n", err)
+				clogger.Printf("[Error] %s", err)
 				break
-			}
-			clogger.Printf("[%v] %s\n", result.Address, frame)
-
-			err = frame.ParseProperties()
-			if err != nil {
-				clogger.Printf("[Error] ParseProperties failed [%s]\n", err)
-				break
-			}
-
-			switch frame.ESV {
-			case echonetlite.Inf:
-				elc.nodeList.Add(result.Address, frame.SEOJ)
-				//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
-				//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
-
-			default:
-				switch obj := frame.Object.(type) {
-				case echonetlite.AirconObject:
-					lc := obj.InstallLocation.Code
-					ln := obj.InstallLocation.Number
-					loc := lc.String()
-					if ln != 0 {
-						loc = fmt.Sprintf("%s%d", lc, ln)
-					}
-					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
-					tempMetrics.With(prometheus.Labels{"ip": result.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
-				default:
-				}
 			}
 		}
 	}
 }
 
-func (elc ELController) handleResult(ctx context.Context, results <-chan transport.ReceiveResult) {
+func (elc ELController) handleUnicastResult(ctx context.Context, results <-chan transport.ReceiveResult) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -175,15 +134,48 @@ func (elc ELController) handleResult(ctx context.Context, results <-chan transpo
 				break
 			}
 			clogger.Printf("<<<<<<<< [%v] UNI CAST RECEIVE: ", result.Address)
-			frame, err := echonetlite.ParseFrame(result.Data)
+			err := elc.onReceive(ctx, result)
 			if err != nil {
-				clogger.Printf("[Error] parse failed [%s]\n", err)
+				clogger.Printf("[Error] %s", err)
 				break
 			}
-			clogger.Printf("[%v] %v\n", result.Address, frame)
-
 		}
 	}
+}
+
+func (elc ELController) onReceive(ctx context.Context, recv transport.ReceiveResult) error {
+	frame, err := echonetlite.ParseFrame(recv.Data)
+	if err != nil {
+		return fmt.Errorf("parse failed: %w", err)
+	}
+	clogger.Printf("[%v] %s\n", recv.Address, frame)
+
+	err = frame.ParseProperties()
+	if err != nil {
+		return fmt.Errorf("ParseProperties failed: %w", err)
+	}
+
+	switch frame.ESV {
+	case echonetlite.Inf:
+		elc.nodeList.Add(recv.Address, frame.SEOJ)
+		//[Controller]2019/09/27 01:52:59 [192.168.1.15] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
+		//[Controller]2019/09/27 01:52:59 [192.168.1.10] 108100010ef00105ff017301d50401013001 EHD[1081] TID[0001] SEOJ[0ef001](ノードプロファイル) DEOJ[05ff01](コントローラ) ESV[INF] OPC[01] EPC0[d5](インスタンスリスト通知) PDC0[4] EDT0[01013001]
+
+	default:
+		switch obj := frame.Object.(type) {
+		case echonetlite.AirconObject:
+			lc := obj.InstallLocation.Code
+			ln := obj.InstallLocation.Number
+			loc := lc.String()
+			if ln != 0 {
+				loc = fmt.Sprintf("%s%d", lc, ln)
+			}
+			tempMetrics.With(prometheus.Labels{"ip": recv.Address, "location": loc, "type": "room"}).Set(obj.InternalTemp)
+			tempMetrics.With(prometheus.Labels{"ip": recv.Address, "location": loc, "type": "outside"}).Set(obj.OuterTemp)
+		default:
+		}
+	}
+	return nil
 }
 
 func (elc *ELController) sendFrame(f *echonetlite.Frame) {
@@ -207,37 +199,8 @@ func (elc *ELController) startSequence(ctx context.Context) {
 	time.Sleep(time.Second * 3)
 }
 
-func (elc ELController) sendLoop(ctx context.Context) {
-	clogger.Println("start sendLoop")
-
-	t := time.NewTicker(30 * time.Second)
-	defer t.Stop()
+// RequestAirConState sends request to get air conditioner states
+func (elc *ELController) RequestAirConState() {
 	f := echonetlite.CreateAirconGetFrame(elc.tid)
 	elc.sendFrame(f)
-
-	for {
-		select {
-		case <-t.C:
-			elc.sendFrame(f)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (elc ELController) startExporter(ctx context.Context) {
-
-	ch := make(chan error)
-	go func() {
-		defer close(ch)
-		elc.Server = http.NewServeMux()
-		elc.Server.Handle("/metrics", promhttp.Handler())
-		clogger.Println("startExporter: ", elc.ExporterAddr)
-		http.Handle("/metrics", promhttp.Handler())
-		select {
-		case ch <- http.ListenAndServe(elc.ExporterAddr, elc.Server):
-		case <-ctx.Done():
-		}
-		clogger.Println("exporter finished")
-	}()
 }
