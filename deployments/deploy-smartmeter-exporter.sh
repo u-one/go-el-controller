@@ -1,6 +1,7 @@
 #!/bin/sh
 
-printenv
+BROUTEID=$1
+BROUTEPW=$2
 
 echo "start"
 echo $BROUTEID
