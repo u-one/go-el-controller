@@ -27,6 +27,7 @@ jobs:
           echo "::set-output name=RELEASE_VER::${VER}"
           #gox -osarch="linux/arm linux/amd64 darwin/amd64 windows/amd64" -ldflags "-X main.version=`git rev-parse --short HEAD`" ./cmd/elexporter/
           gox -osarch="linux/arm" -ldflags "-X main.version=${VER}" ./cmd/elexporter/
+          gox -osarch="linux/arm" -ldflags "-X main.version=${VER}" ./cmd/smartmeter-exporter/
 
     - name: Upload
       uses: actions/upload-artifact@v2
@@ -53,4 +54,14 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./elexporter_linux_arm
           asset_name: elexporter_linux_arm
+          asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset 2
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./smartmeter-exporter_linux_arm
+          asset_name: smartmeter-exporter_linux_arm
           asset_content_type: application/octet-stream
