@@ -27,6 +27,10 @@ jobs:
           BROUTEID: testid
           BROUTEPW: testpw
       run: |
+        aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets '[{"Key":"InstanceIds","Values":["mi-03255646b7984d8e2"]}]' \
+            --parameters "{\"commands\":[\"#!/bin/bash\",\"export BROUTEID=$BROUTEID\",\"export BROUTEPW=$BROUTEPW\"]}"
         aws ssm send-command --document-name "AWS-RunRemoteScript" \
             --instance-ids "mi-03255646b7984d8e2" \
             --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"u-one\", \"repository\":\"go-el-controller\", \"path\": \"deployments\"}"],"commandLine":["deploy-smartmeter-exporter.sh"]}'
