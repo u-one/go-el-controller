@@ -1,5 +1,8 @@
 #!/bin/sh
 
+printenv
+
+echo "start"
 echo $BROUTEID
 echo $BROUTEPW
 
