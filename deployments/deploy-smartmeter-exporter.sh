@@ -27,7 +27,7 @@ cat << EOS > $DIR/start.sh
 /opt/u-one/echonetlite/smartmeter-exporter --brouteid=${BROUTEID} --broutepw=${BROUTEPW}
 EOS
 
-chmod $DIR/start.sh 755
+chmod 755 $DIR/start.sh
 
 systemctl enable smartmeter-exporter.service
 
