@@ -2,7 +2,7 @@
 Description=Smartmeter exporter
 
 [Service]
-ExecStart=/opt/u-one/echonetlite/smartmeter-exporter --brouteid=${BROUTEID} --broutepw=${BROUTEPW}
+ExecStart=/opt/u-one/echonetlite/start.sh
 
 [Install]
 WantedBy=multi-user.target

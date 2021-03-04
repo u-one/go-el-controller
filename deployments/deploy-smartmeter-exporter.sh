@@ -21,6 +21,14 @@ mkdir -p $DIR
 mv smartmeter-exporter_linux_arm $DIR/smartmeter-exporter
 mv smartmeter-exporter.service /etc/systemd/system/
 
+cat << EOS > $DIR/start.sh
+#!/bin/sh
+
+/opt/u-one/echonetlite/smartmeter-exporter --brouteid=${BROUTEID} --broutepw=${BROUTEPW}
+EOS
+
+chmod $DIR/start.sh 755
+
 systemctl enable smartmeter-exporter.service
 
 # start service
