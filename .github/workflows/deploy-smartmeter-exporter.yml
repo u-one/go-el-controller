@@ -29,5 +29,5 @@ jobs:
           BROUTEPW: ${{ secrets.BROUTEPW }}
       run: |
         aws ssm send-command --document-name "AWS-RunRemoteScript" \
-            --instance-ids "mi-03255646b7984d8e2" \
+            --instance-ids "mi-0bdb280b6343b2544" \
             --parameters "{\"sourceType\":[\"GitHub\"],\"sourceInfo\":[$SOURCEINFO],\"commandLine\":[\"deploy-smartmeter-exporter.sh $BROUTEID $BROUTEPW\"]}"
