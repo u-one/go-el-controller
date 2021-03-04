@@ -13,7 +13,7 @@ wget -q $url
 chmod +x ./smartmeter-exporter_linux_arm
 
 # stop service
-systemctl stop smartmeter-exporter.service
+systemctl stop smartmeter-exporter.service | true
 
 # install
 DIR=/opt/u-one/echonetlite
