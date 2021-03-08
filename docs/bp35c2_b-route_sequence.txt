@@ -1,0 +1,31 @@
+@startuml
+title BP35C2を使ったWi-SUN Bルートでのスマートメータとの通信
+
+group 初期設定
+Application -> BP35C2 : SKSETPWD C 0123456789AB (Bルートパスワード)
+Application -> BP35C2 : SKSETRBID 00112233445566778899AABBCCDDEEFF (BルートID)
+end
+
+group ネットワーク検出～設定
+Application -> BP35C2 : SKSCAN 2 FFFFFFFF 6 0
+... スキャン中 ...
+BP35C2 -> Application : EVENT 22 (アクティブスキャン完了)
+BP35C2 -> Application : EPANDESC (PAN通知)
+Application -> BP35C2 : SKLLL64 001D129012345678 (IPv6アドレス変換)
+BP35C2 --> Application : FE80:0000:0000:0000:021D:1290:1234:5678
+Application -> BP35C2 : SKSREG S2 21 (チャネル設定)
+Application -> BP35C2 : SKSREG S3 1234  (PAN ID設定)
+end
+
+group PANA認証
+Application -> BP35C2 : SKJOIN FE80:0000:0000:0000:021D:1290:1234:5678
+BP35C2 -> Application : EVENT 25 (PANAによる接続完了)
+end
+
+group IP通信(暗号化UDP)
+Application -> BP35C2 : SKSENDTO 1 FE80:0000:0000:0000:021D:1290:1234:5678 0E1A 1 0 0005 12345 (UDP送信)
+...  ...
+BP35C2 -> Application : ERXUDP (UDP受信 (マルチキャスト含む))
+end
+
+@enduml
