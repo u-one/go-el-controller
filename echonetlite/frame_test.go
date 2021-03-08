@@ -323,3 +323,24 @@ func TestCreateAirconGetFrame(t *testing.T) {
 	}
 
 }
+
+func TestCreateCurrentPowerConsumptionFrame(t *testing.T) {
+
+	got := CreateCurrentPowerConsumptionFrame(0x0)
+
+	want := &Frame{
+		EHD:  Data{0x10, 0x81},
+		TID:  Data{0x00, 0x00},
+		SEOJ: Object{Data{0x05, 0xff, 0x01}},
+		DEOJ: Object{Data{0x02, 0x88, 0x01}},
+		ESV:  ESVType(0x62),
+		OPC:  0x01,
+		Properties: []Property{
+			{Code: 0xE7, Len: 0, Data: []byte{}},
+		},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+}

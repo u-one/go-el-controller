@@ -47,6 +47,20 @@ const (
 
 	// 低圧スマート電力量メータクラス
 	// Class Group Code: 0x02, Class Code: 0x88
+	Coefficient                           PropertyCode = 0xD7 // 係数
+	IntegralPowerConsumptionValidDigits   PropertyCode = 0xD7 // 積算電力量有効桁数
+	IntegralPowerConsumption              PropertyCode = 0xE0 // 積算電力量計測値(正方向計測値)
+	IntegralPowerConsumptionUnit          PropertyCode = 0xE1 // 積算電力量単位(正方向、逆方向計測値)
+	IntegralPowerConsumptionHist1         PropertyCode = 0xE2 // 積算電力量計測値履歴１(正方向計測値)
+	IntegralPowerConsumptionRev           PropertyCode = 0xE3 // 積算電力量計測値(逆方向計測値)
+	IntegralPowerConsumptionRevHist1      PropertyCode = 0xE4 // 積算電力量計測値履歴１(逆方向計測値)
+	IntegralPowerConsumptionHistCollDate1 PropertyCode = 0xE5 // 積算履歴収集日１
+	InstantPower                          PropertyCode = 0xE7 // 瞬時電力計測値
+	InstantCurrent                        PropertyCode = 0xE8 // 瞬時電流計測値
+	PeriodicalIntegralPowerConsumption    PropertyCode = 0xEA // 定時積算電力量計測値(正方向計測値)
+	PeriodicalIntegralPowerConsumptionRev PropertyCode = 0xEB // 定時積算電力量計測値(逆方向計測値)
+	IntegralPowerConsumptionHist2         PropertyCode = 0xEC // 積算電力量計測値履歴２(正方向、逆方向計測値)
+	IntegralPowerConsumptionHistCollDate2 PropertyCode = 0xED // 積算履歴収集日２
 
 )
 

@@ -1,7 +1,6 @@
 package wisun
 
 import (
-	"context"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
@@ -44,7 +43,7 @@ func TestControllerPANAAuth(t *testing.T) {
 		PanID:    "0002",
 	}).Return(true, nil)
 
-	c := Controller{mock}
+	c := NewController(mock)
 	err := c.PANAAuth("000000TESTID00000000000000000000", "TESTPWDYYYYY")
 	if err != nil {
 		t.Errorf("failed: %s", err)
@@ -63,8 +62,8 @@ func TestControllerGetCurrentConsumption(t *testing.T) {
 		[]byte{0x10, 0x81, 0x00, 0x01, 0x02, 0x88, 0x01, 0x05, 0xff, 0x01, 0x72, 0x01, 0xe7, 0x04, 0x00, 0x00, 0x01, 0xf8}, nil,
 	)
 
-	c := Controller{mock}
-	p, err := c.GetCurrentPowerConsumption(context.Background())
+	c := Controller{client: mock, panDesc: PanDesc{IPV6Addr: "FE80:0000:0000:0000:021C:6400:030C:12A4"}}
+	p, err := c.GetCurrentPowerConsumption()
 	if err != nil {
 		t.Fatalf("error occured:%s", err)
 	}

@@ -29,7 +29,6 @@ func (c ElectricityMeterClient) Start(bRouteID, bRoutePassword string) error {
 	if err != nil {
 		return fmt.Errorf("PANA authentication failed: %v", err)
 	}
-	defer c.controller.Close()
 	return nil
 }
 
@@ -37,4 +36,9 @@ func (c ElectricityMeterClient) Start(bRouteID, bRoutePassword string) error {
 func (c ElectricityMeterClient) Version() {
 	c.controller.Version()
 
+}
+
+// GetPowerConsumption requests power consumption and receives
+func (c ElectricityMeterClient) GetPowerConsumption() (int, error) {
+	return c.controller.GetCurrentPowerConsumption()
 }

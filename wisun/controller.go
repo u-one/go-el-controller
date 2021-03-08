@@ -1,7 +1,6 @@
 package wisun
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -10,12 +9,13 @@ import (
 
 // Controller is
 type Controller struct {
-	client Client
+	client  Client
+	panDesc PanDesc
 }
 
 // NewController returns new instance
 func NewController(c Client) *Controller {
-	return &Controller{c}
+	return &Controller{client: c}
 }
 
 // Close close
@@ -29,7 +29,7 @@ func (c Controller) Version() error {
 }
 
 // PANAAuth starts PANA authentication
-func (c Controller) PANAAuth(bRouteID, bRoutePW string) error {
+func (c *Controller) PANAAuth(bRouteID, bRoutePW string) error {
 
 	if len(bRouteID) == 0 {
 		log.Fatal("set B-route ID")
@@ -73,16 +73,17 @@ func (c Controller) PANAAuth(bRouteID, bRoutePW string) error {
 		log.Fatal("Failed to join")
 	}
 
+	c.panDesc = pd
+
 	// TODO: return error
 	return nil
 }
 
 // GetCurrentPowerConsumption is ..
-func (c Controller) GetCurrentPowerConsumption(ctx context.Context) (int, error) {
-	elframe := []byte{0x10, 0x81, 0x00, 0x01, 0x05, 0xff, 0x01, 0x02, 0x88, 0x01, 0x62, 0x01, 0xe7, 0x00}
-	ipv6addr := "FE80:0000:0000:0000:021C:6400:030C:12A4"
+func (c Controller) GetCurrentPowerConsumption() (int, error) {
+	f := echonetlite.CreateCurrentPowerConsumptionFrame(1) // TODO: increment
 
-	eldata, err := c.client.SendTo(ipv6addr, elframe)
+	eldata, err := c.client.SendTo(c.panDesc.IPV6Addr, f.Serialize())
 	if err != nil {
 		return 0, err
 	}
