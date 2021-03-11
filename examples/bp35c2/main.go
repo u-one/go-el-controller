@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/wisun"
 )
 
@@ -22,18 +21,17 @@ func main() {
 
 func run() error {
 	wisunClient := wisun.NewBP35C2Client()
-	node := echonetlite.NewElectricityControllerNode(wisunClient)
-	defer node.Close()
+	defer wisunClient.Close()
 
-	err := node.Start(*bRouteID, *bRoutePW)
+	err := wisunClient.Connect(*bRouteID, *bRoutePW)
 	if err != nil {
-		return fmt.Errorf("failed to start: %w", err)
+		return fmt.Errorf("Connect failed: %v", err)
 	}
 
-	for {
-		_, err := node.GetPowerConsumption()
-		if err != nil {
-			log.Println(err)
-		}
+	p, err := wisunClient.Get()
+	if err != nil {
+		return fmt.Errorf("Get failed: %v", err)
 	}
+	log.Println(p)
+	return nil
 }
