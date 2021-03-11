@@ -422,26 +422,3 @@ func Test_parseRXUDP(t *testing.T) {
 		t.Errorf("data differs: (-want +got)\n%s", diff)
 	}
 }
-
-func Test_Get(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := transport.NewMockSerial(ctrl)
-
-	mock(t, m, "SKSENDTO 1 FE80:0000:0000:0000:021C:6400:030C:12A4 0E1A 1 0 000E \x10\x81\x00\x01\x05\xff\x01\x02\x88\x01\x62\x01\xe7\x00\r\n", []resp{
-		{"EVENT 21 2001:0DB8:0000:0000:011A:1111:0000:0002 0 00\r\n", nil},
-		{"OK\r\n", nil},
-		{"ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01\x72\x01\xe7\x04\x00\x00\x01\xf8\r\n", nil},
-	})
-
-	c := &BP35C2Client{serial: m, panDesc: PanDesc{IPV6Addr: "FE80:0000:0000:0000:021C:6400:030C:12A4"}}
-
-	p, err := c.Get()
-	if err != nil {
-		t.Fatalf("error occured:%s", err)
-	}
-
-	if p != 0 {
-		t.Errorf("different")
-	}
-}

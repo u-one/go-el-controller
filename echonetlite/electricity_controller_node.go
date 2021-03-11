@@ -1,4 +1,4 @@
-package hems
+package echonetlite
 
 import (
 	"fmt"
@@ -25,12 +25,23 @@ func (n ElectricityControllerNode) Close() {
 func (n ElectricityControllerNode) Start(bRouteID, bRoutePassword string) error {
 	err := n.client.Connect(bRouteID, bRoutePassword)
 	if err != nil {
-		return fmt.Errorf("PANA authentication failed: %v", err)
+		return fmt.Errorf("Connect failed: %v", err)
 	}
 	return nil
 }
 
 // GetPowerConsumption requests power consumption and receives
 func (n ElectricityControllerNode) GetPowerConsumption() (int, error) {
-	return n.client.Get()
+	f := CreateCurrentPowerConsumptionFrame(1) // TODO: increment
+
+	eldata, err := n.client.Send(f.Serialize())
+	if err != nil {
+		return 0, err
+	}
+	elFrame, err := ParseFrame(eldata)
+	if err != nil {
+		return 0, fmt.Errorf("invalid frame: %w", err)
+	}
+	elFrame.Print()
+	return 0, nil
 }

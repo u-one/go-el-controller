@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/wisun"
 )
 
@@ -28,10 +29,17 @@ func run() error {
 		return fmt.Errorf("Connect failed: %v", err)
 	}
 
-	p, err := wisunClient.Get()
+	f := echonetlite.CreateCurrentPowerConsumptionFrame(1)
+
+	eldata, err := wisunClient.Send(f.Serialize())
 	if err != nil {
-		return fmt.Errorf("Get failed: %v", err)
+		return err
 	}
-	log.Println(p)
+	elFrame, err := echonetlite.ParseFrame(eldata)
+	if err != nil {
+		return fmt.Errorf("invalid frame: %w", err)
+	}
+	elFrame.Print()
+
 	return nil
 }

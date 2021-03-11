@@ -7,7 +7,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/transport"
 )
 
@@ -356,21 +355,4 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 
 	// TODO: return error
 	return nil
-}
-
-// Get is ..
-func (c BP35C2Client) Get() (int, error) {
-	f := echonetlite.CreateCurrentPowerConsumptionFrame(1) // TODO: increment
-
-	eldata, err := c.Send(f.Serialize())
-	if err != nil {
-		return 0, err
-	}
-	elFrame, err := echonetlite.ParseFrame(eldata)
-	if err != nil {
-		return 0, fmt.Errorf("invalid frame: %w", err)
-	}
-	elFrame.Print()
-
-	return 0, nil
 }

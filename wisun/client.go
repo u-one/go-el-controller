@@ -7,5 +7,4 @@ type Client interface {
 	Connect(bRouteID, bRoutePW string) error
 	Close()
 	Send(data []byte) ([]byte, error)
-	Get() (int, error)
 }
