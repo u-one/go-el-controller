@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/u-one/go-el-controller/echonetlite"
 	"github.com/u-one/go-el-controller/transport"
 )
 
@@ -15,6 +16,15 @@ type BP35C2Client struct {
 	sendSeq int
 	readSeq int
 	serial  transport.Serial
+	panDesc PanDesc
+}
+
+// PanDesc is...
+type PanDesc struct {
+	Addr     string
+	IPV6Addr string
+	Channel  string
+	PanID    string
 }
 
 // NewBP35C2Client returns BP35C2Client instance
@@ -249,9 +259,10 @@ func (c BP35C2Client) Join(desc PanDesc) (bool, error) {
 
 }
 
-// SendTo is...
-func (c *BP35C2Client) SendTo(ipv6Addr string, data []byte) ([]byte, error) {
-	cmd := []byte(fmt.Sprintf("SKSENDTO 1 %s 0E1A 1 0 %04X ", ipv6Addr, len(data)))
+// Send is...
+func (c *BP35C2Client) Send(data []byte) ([]byte, error) {
+	ipv6 := c.panDesc.IPV6Addr
+	cmd := []byte(fmt.Sprintf("SKSENDTO 1 %s 0E1A 1 0 %04X ", ipv6, len(data)))
 	cmd = append(cmd, data...)
 	cmd = append(cmd, []byte("\r\n")...)
 	c.send(cmd)
@@ -293,4 +304,73 @@ func parseRXUDP(line []byte) ([]byte, error) {
 		return nil, fmt.Errorf("RXUDP invalid format")
 	}
 	return cols[9], nil
+}
+
+// Connect connects to smart-meter
+func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
+
+	if len(bRouteID) == 0 {
+		log.Fatal("set B-route ID")
+	}
+	if len(bRoutePW) == 0 {
+		log.Fatal("set B-route password")
+	}
+
+	c.SetBRoutePassword(bRoutePW)
+	c.SetBRouteID(bRouteID)
+
+	pd, err := c.Scan()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ipv6Addr, err := c.LL64(pd.Addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pd.IPV6Addr = ipv6Addr
+	log.Printf("Translated address:%#v", pd)
+
+	err = c.SRegS2(pd.Channel)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.SRegS3(pd.PanID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// PANA authentication
+	joined, err := c.Join(pd)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !joined {
+		log.Fatal("Failed to join")
+	}
+
+	c.panDesc = pd
+
+	// TODO: return error
+	return nil
+}
+
+// Get is ..
+func (c BP35C2Client) Get() (int, error) {
+	f := echonetlite.CreateCurrentPowerConsumptionFrame(1) // TODO: increment
+
+	eldata, err := c.Send(f.Serialize())
+	if err != nil {
+		return 0, err
+	}
+	elFrame, err := echonetlite.ParseFrame(eldata)
+	if err != nil {
+		return 0, fmt.Errorf("invalid frame: %w", err)
+	}
+	elFrame.Print()
+
+	return 0, nil
 }

@@ -113,26 +113,28 @@ func Test_scan(t *testing.T) {
 			},
 			expect: true,
 		},
+
 		/* TODO: fix
-		{
-			name:     "fail",
-			duration: 5,
-			input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
-			response: []resp{
-				{"FAIL\r\n", nil},
-			},
-			expect: false,
-		},
-		{
-			name:     "fail",
-			duration: 5,
-			input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
-			response: []resp{
-				{"\r\n", fmt.Errorf("error")},
-			},
-			expect: false,
-		},
+		   {
+		   	name:     "fail",
+		   	duration: 5,
+		   	input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
+		   	response: []resp{
+		   		{"FAIL\r\n", nil},
+		   	},
+		   	expect: false,
+		   },
+		   {
+		   	name:     "fail",
+		   	duration: 5,
+		   	input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
+		   	response: []resp{
+		   		{"\r\n", fmt.Errorf("error")},
+		   	},
+		   	expect: false,
+		   },
 		*/
+
 	}
 
 	for _, tc := range testcases {
@@ -358,7 +360,7 @@ func Test_Join(t *testing.T) {
 	}
 }
 
-func Test_SendTo(t *testing.T) {
+func Test_Send(t *testing.T) {
 	t.Parallel()
 
 	testcases := []struct {
@@ -371,10 +373,9 @@ func Test_SendTo(t *testing.T) {
 		err      error
 	}{
 		{
-			name:     "success",
-			ipv6addr: "2001:0DB8:0000:0000:011A:1111:0000:0002",
-			data:     []byte{'X', 'X', 'X', 'X'},
-			input:    "SKSENDTO 1 2001:0DB8:0000:0000:011A:1111:0000:0002 0E1A 1 0 000E \r\n",
+			name:  "success",
+			data:  []byte{'X', 'X', 'X', 'X'},
+			input: "SKSENDTO 1 2001:0DB8:0000:0000:011A:1111:0000:0002 0E1A 1 0 000E \r\n",
 			response: []resp{
 				{"EVENT 21 2001:0DB8:0000:0000:011A:1111:0000:0002 0 00\r\n", nil},
 				{"OK\r\n", nil},
@@ -395,8 +396,8 @@ func Test_SendTo(t *testing.T) {
 			m := transport.NewMockSerial(ctrl)
 			mock(t, m, tc.input, tc.response)
 
-			c := &BP35C2Client{serial: m}
-			got, err := c.SendTo(tc.ipv6addr, tc.data)
+			c := &BP35C2Client{serial: m, panDesc: PanDesc{IPV6Addr: "2001:0DB8:0000:0000:011A:1111:0000:0002"}}
+			got, err := c.Send(tc.data)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Diffrent result: -want, +got: \n%s", diff)
 			}
@@ -419,5 +420,28 @@ func Test_parseRXUDP(t *testing.T) {
 	want := []byte{0x10, 0x81, 0x00, 0x01, 0x02, 0x88, 0x01, 0x05, 0xff, 0x01, 0x01, 0xe7, 0x04, 0x00, 0x00, 0x01, 0xf8}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("data differs: (-want +got)\n%s", diff)
+	}
+}
+
+func Test_Get(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := transport.NewMockSerial(ctrl)
+
+	mock(t, m, "SKSENDTO 1 FE80:0000:0000:0000:021C:6400:030C:12A4 0E1A 1 0 000E \x10\x81\x00\x01\x05\xff\x01\x02\x88\x01\x62\x01\xe7\x00\r\n", []resp{
+		{"EVENT 21 2001:0DB8:0000:0000:011A:1111:0000:0002 0 00\r\n", nil},
+		{"OK\r\n", nil},
+		{"ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01\x72\x01\xe7\x04\x00\x00\x01\xf8\r\n", nil},
+	})
+
+	c := &BP35C2Client{serial: m, panDesc: PanDesc{IPV6Addr: "FE80:0000:0000:0000:021C:6400:030C:12A4"}}
+
+	p, err := c.Get()
+	if err != nil {
+		t.Fatalf("error occured:%s", err)
+	}
+
+	if p != 0 {
+		t.Errorf("different")
 	}
 }
