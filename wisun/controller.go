@@ -28,8 +28,8 @@ func (c Controller) Version() error {
 	return c.client.Version()
 }
 
-// PANAAuth starts PANA authentication
-func (c *Controller) PANAAuth(bRouteID, bRoutePW string) error {
+// Connect connects to smart-meter
+func (c *Controller) Connect(bRouteID, bRoutePW string) error {
 
 	if len(bRouteID) == 0 {
 		log.Fatal("set B-route ID")
@@ -64,6 +64,7 @@ func (c *Controller) PANAAuth(bRouteID, bRoutePW string) error {
 		log.Fatal(err)
 	}
 
+	// PANA authentication
 	joined, err := c.client.Join(pd)
 	if err != nil {
 		log.Fatal(err)

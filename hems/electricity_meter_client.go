@@ -25,7 +25,7 @@ func (c ElectricityMeterClient) Close() {
 
 // Start starts sequence
 func (c ElectricityMeterClient) Start(bRouteID, bRoutePassword string) error {
-	err := c.controller.PANAAuth(bRouteID, bRoutePassword)
+	err := c.controller.Connect(bRouteID, bRoutePassword)
 	if err != nil {
 		return fmt.Errorf("PANA authentication failed: %v", err)
 	}

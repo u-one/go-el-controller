@@ -19,7 +19,7 @@ func TestControllerVersion(t *testing.T) {
 	}
 }
 
-func TestControllerPANAAuth(t *testing.T) {
+func TestControllerConnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mock := NewMockClient(ctrl)
@@ -44,7 +44,7 @@ func TestControllerPANAAuth(t *testing.T) {
 	}).Return(true, nil)
 
 	c := NewController(mock)
-	err := c.PANAAuth("000000TESTID00000000000000000000", "TESTPWDYYYYY")
+	err := c.Connect("000000TESTID00000000000000000000", "TESTPWDYYYYY")
 	if err != nil {
 		t.Errorf("failed: %s", err)
 	}
