@@ -18,6 +18,7 @@ type BP35C2Client struct {
 	readSeq int
 	serial  transport.Serial
 	panDesc PanDesc
+	joined  bool
 }
 
 // PanDesc is...
@@ -35,7 +36,10 @@ func NewBP35C2Client(portaddr string) *BP35C2Client {
 }
 
 // Close closees connection
-func (c BP35C2Client) Close() {
+func (c *BP35C2Client) Close() {
+	if c.joined {
+		c.Term()
+	}
 	c.serial.Close()
 }
 
@@ -284,7 +288,7 @@ func (c BP35C2Client) SRegS3(panID string) error {
 }
 
 // Join is ..
-func (c BP35C2Client) Join(desc PanDesc) (bool, error) {
+func (c *BP35C2Client) Join(desc PanDesc) (bool, error) {
 	cmd := fmt.Sprintf("SKJOIN %s\r\n", desc.IPV6Addr)
 	c.send([]byte(cmd))
 	c.recv()
@@ -314,6 +318,8 @@ func (c BP35C2Client) Join(desc PanDesc) (bool, error) {
 			}
 			if bytes.HasPrefix(res, []byte("EVENT 25")) {
 				log.Println("found EVENT 25")
+				c.joined = true
+				fmt.Printf("%#v\n", c)
 				return true, nil
 			}
 		}
@@ -418,4 +424,11 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 
 	// TODO: return error
 	return nil
+}
+
+// Term terminates PANA session
+func (c BP35C2Client) Term() {
+	c.send([]byte("SKTERM\r\n"))
+	c.recv()
+	c.recv()
 }

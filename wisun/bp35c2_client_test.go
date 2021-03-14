@@ -41,6 +41,20 @@ func mock(t *testing.T, m *transport.MockSerial, input string, response []resp) 
 
 }
 
+func Test_Close(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	m := transport.NewMockSerial(ctrl)
+	mock(t, m, "SKTERM\r\n", []resp{
+		{"OK\r\n", nil},
+	})
+
+	c := &BP35C2Client{serial: m}
+	c.Term()
+}
+
 func Test_Version(t *testing.T) {
 	t.Parallel()
 

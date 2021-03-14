@@ -247,3 +247,11 @@ func Test_Medium_Send(t *testing.T) {
 		})
 	}
 }
+
+func Test_Medium_Term(t *testing.T) {
+
+	wisunClient := NewBP35C2Client(testPort)
+	defer wisunClient.Close()
+
+	wisunClient.Term()
+}
