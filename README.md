@@ -18,6 +18,18 @@ clone object database file (though this repos has no go source code...)
 go get github.com/SonyCSL/ECHONETLite-ObjectDatabase
 ```
 
+### Medium Test using BP35C2 Emulator
+Start emulator
+```
+cd tools/bp35c2-emulator
+go run main.go
+```
+
+Then test with tag "medium"
+```
+go test ./... -tags medium
+```
+
 ### Build for Raspberry pi
 
 ```
