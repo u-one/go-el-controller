@@ -2,17 +2,22 @@ package echonetlite
 
 import (
 	"fmt"
-
-	"github.com/u-one/go-el-controller/wisun"
 )
+
+// SmartMeterClient is interface for smart-meter cleint
+type SmartMeterClient interface {
+	Connect(bRouteID, bRoutePW string) error
+	Close()
+	Send(data []byte) ([]byte, error)
+}
 
 // ElectricityControllerNode is node for smart-meter
 type ElectricityControllerNode struct {
-	client wisun.Client
+	client SmartMeterClient
 }
 
 // NewElectricityControllerNode returns ElectricityControllerNode instance
-func NewElectricityControllerNode(c wisun.Client) *ElectricityControllerNode {
+func NewElectricityControllerNode(c SmartMeterClient) *ElectricityControllerNode {
 	return &ElectricityControllerNode{c}
 }
 
