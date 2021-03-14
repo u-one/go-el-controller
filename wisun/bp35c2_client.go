@@ -206,20 +206,20 @@ func (c BP35C2Client) receivePanDesc() (PanDesc, error) {
 	if err == nil && bytes.HasPrefix(line, []byte("EPANDESC")) {
 		line, err := c.recv() // Channel
 		if err != nil {
-			return PanDesc{}, fmt.Errorf("Failed to get Channel [%s]", err)
+			return PanDesc{}, fmt.Errorf("failed to get Channel [%s]", err)
 		}
 		tokens := bytes.Split(line, []byte("Channel:"))
 		ed.Channel = string(bytes.Trim(tokens[1], "\r\n"))
 		c.recv()             // Channel Page: XX
 		line, err = c.recv() // Pan ID: XXXX
 		if err != nil {
-			return PanDesc{}, fmt.Errorf("Failed to get Pan ID [%s]", err)
+			return PanDesc{}, fmt.Errorf("failed to get Pan ID [%s]", err)
 		}
 		tokens = bytes.Split(line, []byte("Pan ID:"))
 		ed.PanID = string(bytes.Trim(tokens[1], "\r\n"))
 		line, err = c.recv() // Addr:XXXXXXXXXXXXXXXX
 		if err != nil {
-			return PanDesc{}, fmt.Errorf("Failed to get Addr [%s]", err)
+			return PanDesc{}, fmt.Errorf("failed to get Addr [%s]", err)
 		}
 		tokens = bytes.Split(line, []byte("Addr:"))
 		ed.Addr = string(bytes.Trim(tokens[1], "\r\n"))
