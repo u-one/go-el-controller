@@ -24,9 +24,9 @@ type SerialImpl struct {
 }
 
 // NewSerialImpl opens default serial connection and returns SerialImpl
-func NewSerialImpl() *SerialImpl {
+func NewSerialImpl(addr string) *SerialImpl {
 	config := serial.Config{
-		Address:  "/dev/ttyUSB0",
+		Address:  addr,
 		BaudRate: 115200,
 		DataBits: 8,
 		StopBits: 1,

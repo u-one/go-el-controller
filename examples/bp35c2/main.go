@@ -9,8 +9,8 @@ import (
 	"github.com/u-one/go-el-controller/wisun"
 )
 
-var bRouteID = flag.String("brouteid", "", "B-route ID")
-var bRoutePW = flag.String("broutepw", "", "B-route password")
+var bRouteID = flag.String("brouteid", "0123456789AB", "B-route ID")
+var bRoutePW = flag.String("broutepw", "00112233445566778899AABBCCDDEEFF", "B-route password")
 
 func main() {
 	flag.Parse()
@@ -21,12 +21,18 @@ func main() {
 }
 
 func run() error {
-	wisunClient := wisun.NewBP35C2Client()
+	serialport := "COM2"
+	wisunClient := wisun.NewBP35C2Client(serialport)
 	defer wisunClient.Close()
 
-	err := wisunClient.Connect(*bRouteID, *bRoutePW)
+	err := wisunClient.Version()
 	if err != nil {
-		return fmt.Errorf("Connect failed: %v", err)
+		return fmt.Errorf("failed to exec Version: %v", err)
+	}
+
+	err = wisunClient.Connect(*bRouteID, *bRoutePW)
+	if err != nil {
+		return fmt.Errorf("failed to exec Connect: %v", err)
 	}
 
 	f := echonetlite.CreateCurrentPowerConsumptionFrame(1)
