@@ -27,8 +27,8 @@ type PanDesc struct {
 }
 
 // NewBP35C2Client returns BP35C2Client instance
-func NewBP35C2Client() *BP35C2Client {
-	s := transport.NewSerialImpl()
+func NewBP35C2Client(portaddr string) *BP35C2Client {
+	s := transport.NewSerialImpl(portaddr)
 	return &BP35C2Client{serial: s}
 }
 

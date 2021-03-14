@@ -21,7 +21,8 @@ func main() {
 }
 
 func run() error {
-	wisunClient := wisun.NewBP35C2Client()
+	serialport := "/dev/ttyUSB0"
+	wisunClient := wisun.NewBP35C2Client(serialport)
 	node := echonetlite.NewElectricityControllerNode(wisunClient)
 	defer node.Close()
 
