@@ -17,9 +17,12 @@ func Test_Medium_Version(t *testing.T) {
 	wisunClient := NewBP35C2Client(testPort)
 	defer wisunClient.Close()
 
-	err := wisunClient.Version()
+	got, err := wisunClient.Version()
 	if err != nil {
 		t.Fatal("failed to exec Version")
+	}
+	if got != "1.0.0" {
+		t.Fatalf("different result %s", got)
 	}
 }
 

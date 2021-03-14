@@ -25,10 +25,11 @@ func run() error {
 	wisunClient := wisun.NewBP35C2Client(serialport)
 	defer wisunClient.Close()
 
-	err := wisunClient.Version()
+	ver, err := wisunClient.Version()
 	if err != nil {
 		return fmt.Errorf("failed to exec Version: %v", err)
 	}
+	fmt.Printf("Version: %s\n", ver)
 
 	err = wisunClient.Connect(*bRouteID, *bRoutePW)
 	if err != nil {

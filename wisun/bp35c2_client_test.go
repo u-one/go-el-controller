@@ -1,6 +1,7 @@
 package wisun
 
 import (
+	"fmt"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
@@ -43,16 +44,91 @@ func mock(t *testing.T, m *transport.MockSerial, input string, response []resp) 
 func Test_Version(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := transport.NewMockSerial(ctrl)
-	mock(t, m, "SKVER\r\n", []resp{
-		{"EVER 1.5.2\r\n", nil},
-		{"OK\r\n", nil},
-	})
+	testcases := []struct {
+		name   string
+		input  string
+		output []resp
+		want   string
+		err    error
+	}{
+		{
+			name:  "success",
+			input: "SKVER\r\n",
+			output: []resp{
+				{"EVER 1.5.2\r\n", nil},
+				{"OK\r\n", nil},
+			},
+			want: "1.5.2",
+			err:  nil,
+		},
+		{
+			name:  "recv EVER fail",
+			input: "SKVER\r\n",
+			output: []resp{
+				{"", fmt.Errorf("fail on EVER")},
+			},
+			want: "",
+			err:  fmt.Errorf("fail on EVER"),
+		},
+		{
+			name:  "recv not EVER",
+			input: "SKVER\r\n",
+			output: []resp{
+				{"XXXX", nil},
+			},
+			want: "",
+			err:  fmt.Errorf("unexpected response [XXXX]"),
+		},
+		{
+			name:  "No version string",
+			input: "SKVER\r\n",
+			output: []resp{
+				{"EVER\r\n", nil},
+			},
+			want: "",
+			err:  fmt.Errorf("version string not found"),
+		},
+		{
+			name:  "result not OK",
+			input: "SKVER\r\n",
+			output: []resp{
+				{"EVER 1.5.2\r\n", nil},
+				{"FAIL\r\n", nil},
+			},
+			want: "1.5.2",
+			err:  fmt.Errorf("command failed [FAIL]"),
+		},
+	}
 
-	c := &BP35C2Client{serial: m}
-	c.Version()
+	for _, tc := range testcases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := transport.NewMockSerial(ctrl)
+			mock(t, m, tc.input, tc.output)
+
+			c := &BP35C2Client{serial: m}
+			got, err := c.Version()
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Diffrent result: -want, +got: \n%s", diff)
+			}
+
+			if tc.err != nil && err != nil {
+				if tc.err.Error() != err.Error() {
+					t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+				}
+			} else if tc.err != err {
+				t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+			}
+
+		})
+	}
+
 }
 
 func Test_SetBRoutePassword(t *testing.T) {

@@ -57,7 +57,6 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	log.Printf("Read[%d]:%s", c.readSeq, string(line))
 
 	// For debug
 	stringWithBinary := func(data []byte) string {
@@ -95,12 +94,44 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 }
 
 // Version is ..
-func (c BP35C2Client) Version() error {
+func (c BP35C2Client) Version() (string, error) {
 	err := c.send([]byte("SKVER\r\n"))
+	if err != nil {
+		return "", err
+	}
+
+	// Echoback
 	_, err = c.recv()
-	_, err = c.recv()
-	_, err = c.recv()
-	return err
+	if err != nil {
+		return "", err
+	}
+
+	//EVER X.Y.Z
+	r, err := c.recv()
+	if err != nil {
+		return "", err
+	}
+
+	if !bytes.HasPrefix(r, []byte("EVER")) {
+		return "", fmt.Errorf("unexpected response [%s]", r)
+	}
+
+	tokens := bytes.Split(r, []byte{' '})
+	if len(tokens) < 2 {
+		return "", fmt.Errorf("version string not found")
+	}
+	ver := string(tokens[1])
+
+	//OK
+	r, err = c.recv()
+	if err != nil {
+		return ver, err
+	}
+	if !bytes.Equal(r, []byte("OK")) {
+		return ver, fmt.Errorf("command failed [%s]", r)
+	}
+
+	return ver, nil
 }
 
 // SetBRoutePassword is..
@@ -160,10 +191,7 @@ func (c BP35C2Client) scan(duration int) bool {
 		select {
 		case err := <-ch:
 			if err == nil {
-				if len(data) == 0 {
-					return false
-				}
-				return true
+				return len(data) != 0
 			}
 		case <-ctx.Done():
 			log.Fatal(ctx.Err())
