@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/u-one/go-el-controller/transport"
 )
@@ -56,6 +58,39 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 		return []byte{}, err
 	}
 	log.Printf("Read[%d]:%s", c.readSeq, string(line))
+
+	// For debug
+	stringWithBinary := func(data []byte) string {
+		var b strings.Builder
+		data = bytes.TrimSuffix(data, []byte{'\r', '\n'})
+		tokens := bytes.Split(data, []byte{' '})
+		for i, token := range tokens {
+			binary := false
+			for _, r := range string(token) {
+				if r == '\r' || r == '\n' {
+					continue
+				}
+				if !unicode.IsGraphic(r) {
+					binary = true
+				}
+			}
+			if i > 0 {
+				fmt.Fprintf(&b, " ")
+			}
+			if binary {
+				fmt.Fprintf(&b, "%#v", token)
+			} else {
+				s := string(token)
+				s = strings.ReplaceAll(s, "\r", "\\r")
+				s = strings.ReplaceAll(s, "\n", "\\n")
+				fmt.Fprintf(&b, "%s", s)
+			}
+		}
+		return b.String()
+	}
+
+	log.Printf("Read[%d]:%s", c.readSeq, stringWithBinary(line))
+	line = bytes.TrimSuffix(line, []byte{'\r', '\n'})
 	return line, err
 }
 
