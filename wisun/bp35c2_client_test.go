@@ -498,17 +498,3 @@ func Test_Send(t *testing.T) {
 		})
 	}
 }
-
-func Test_parseRXUDP(t *testing.T) {
-	t.Parallel()
-
-	line := []byte("ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01\x01\xe7\x04\x00\x00\x01\xf8")
-	got, err := parseRXUDP(line)
-	if err != nil {
-		t.Fatalf("error occured")
-	}
-	want := []byte{0x10, 0x81, 0x00, 0x01, 0x02, 0x88, 0x01, 0x05, 0xff, 0x01, 0x01, 0xe7, 0x04, 0x00, 0x00, 0x01, 0xf8}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("data differs: (-want +got)\n%s", diff)
-	}
-}

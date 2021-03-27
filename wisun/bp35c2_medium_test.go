@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	testPort = "COM2"
+	testPort = "COM4"
 )
 
 func Test_Medium_Version(t *testing.T) {

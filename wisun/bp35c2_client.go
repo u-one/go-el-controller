@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -312,15 +313,27 @@ func (c *BP35C2Client) Join(desc PanDesc) (bool, error) {
 				return false, fmt.Errorf("join failed: %w", err)
 			}
 
-			if bytes.HasPrefix(res, []byte("EVENT 24")) {
-				log.Println("found EVENT 24")
-				return false, nil
-			}
-			if bytes.HasPrefix(res, []byte("EVENT 25")) {
-				log.Println("found EVENT 25")
-				c.joined = true
-				fmt.Printf("%#v\n", c)
-				return true, nil
+			tokens := bytes.Split(res, []byte{' '})
+			eventType := string(tokens[0])
+
+			switch eventType {
+			case "EVENT":
+				if len(tokens) < 2 {
+					return false, fmt.Errorf("invalid format [%s]", res)
+				}
+				num, err := strconv.ParseInt(string(tokens[1]), 16, 8)
+				if err != nil {
+					return false, fmt.Errorf("invalid EVENT num [%s]", res)
+				}
+				switch num {
+				case 0x24:
+					log.Println("Join failed")
+					return false, nil
+				case 0x25:
+					log.Println("Join succeed")
+					c.joined = true
+					return true, nil
+				}
 			}
 		}
 	}
@@ -353,25 +366,45 @@ func (c *BP35C2Client) Send(data []byte) ([]byte, error) {
 				return nil, err
 			}
 
-			// b'ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01r\x01\xe7\x04\x00\x00\x01\xf8\r\n'
-			if bytes.HasPrefix(res, []byte("ERXUDP")) {
-				log.Println("found ERXUDP")
-				// TODO: Trim and Append linebreak in recv(), Send() method
-				res = bytes.Trim(res, "\r\n")
-				rdata, err := parseRXUDP(res)
-				return rdata, err
+			tokens := bytes.Split(res, []byte{' '})
+			eventType := string(tokens[0])
+
+			switch eventType {
+			case "EVENT":
+				if len(tokens) < 2 {
+					log.Printf("invalid format [%s]\n", res)
+				}
+				num, err := strconv.ParseInt(string(tokens[1]), 16, 8)
+				if err != nil {
+					log.Printf("invalid EVENT num [%s]\n", res)
+				}
+				switch num {
+				case 0x21:
+					log.Println("UDP send succeed")
+				default:
+					log.Printf("unexpected EVENT %x\n", num)
+				}
+			case "ERXUDP":
+				// ERXUDP <SENDER> <DEST> <RPORT> <LPORT> <SENDERLLA> (<RSSI>) <SECURED> <SIDE> <DATALEN> <DATA>
+				if len(tokens) >= 10 {
+					dstPort, err := strconv.ParseInt(string(tokens[4]), 16, 16)
+					if err != nil {
+						return nil, fmt.Errorf("invalid destination port [%s]", res)
+					}
+					switch dstPort {
+					case 3610: // ECHONET Lite
+						data := tokens[9]
+						return data, err
+					case 716: // PANA
+						log.Println("PANA data")
+					case 19788: // MLE
+						log.Println("MLE data")
+					}
+
+				}
 			}
 		}
 	}
-}
-
-func parseRXUDP(line []byte) ([]byte, error) {
-	// b'ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FE80:0000:0000:0000:021D:1291:0000:0574 0E1A 0E1A 001C6400030C12A4 1 0 0012 \x10\x81\x00\x01\x02\x88\x01\x05\xff\x01r\x01\xe7\x04\x00\x00\x01\xf8\r\n'
-	cols := bytes.Split(line, []byte{' '})
-	if len(cols) < 10 {
-		return nil, fmt.Errorf("RXUDP invalid format")
-	}
-	return cols[9], nil
 }
 
 // Connect connects to smart-meter
