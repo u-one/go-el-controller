@@ -15,11 +15,6 @@ func NewObjectFromData(d Data) Object {
 	return Object{Data: d}
 }
 
-// Class returns Class
-func (o Object) Class() Class {
-	return Class{o.Data[0], o.Data[1]}
-}
-
 func (o Object) classGroupCode() ClassGroupCode {
 	return ClassGroupCode(o.Data[0])
 }

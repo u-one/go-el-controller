@@ -70,10 +70,10 @@ func (n ElectricityControllerNode) GetPowerConsumption() (int, error) {
 	switch rf.ESV {
 	// 応答・通知
 	case GetRes: // プロパティ値読み出し応答
-		c := rf.SrcClass()
-		switch ClassGroupCode(c.ClassGroupCode) {
+		o := rf.SrcObj()
+		switch o.classGroupCode() {
 		case HomeEquipmentGroup:
-			switch ClassCode(c.ClassCode) {
+			switch o.classCode() {
 			case LowVoltageSmartMeter:
 				for _, p := range rf.Properties {
 					switch PropertyCode(p.Code) {

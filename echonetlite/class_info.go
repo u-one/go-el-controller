@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 )
@@ -17,47 +16,47 @@ var (
 )
 
 // ClassInfoMap is Class keyed ClassInfo map
-type ClassInfoMap map[Class]*ClassInfo
+type ClassInfoMap map[ClassGroupCode]map[ClassCode]ClassInfo
+
+func NewClassInfoMap() ClassInfoMap {
+	return ClassInfoMap{}
+}
+
+func (cim ClassInfoMap) get(g ClassGroupCode, c ClassCode) (ClassInfo, bool) {
+	if cm, ok := cim[g]; ok {
+		if i, ok := cm[c]; ok {
+			return i, true
+		}
+	}
+	return ClassInfo{}, false
+}
+
+func (cim ClassInfoMap) add(g ClassGroupCode, c ClassCode, info ClassInfo) {
+	cm, ok := cim[g]
+	if !ok {
+		cm = map[ClassCode]ClassInfo{}
+		cim[g] = cm
+	}
+	cm[c] = info
+}
 
 // Get returns ClassInfo from Class key
-func (cim ClassInfoMap) Get(c Class) *ClassInfo {
-	if cim[c] != nil {
-		return cim[c]
+func (cim ClassInfoMap) Get(g ClassGroupCode, c ClassCode) ClassInfo {
+	if i, ok := cim.get(g, c); ok {
+		return i
 	}
-	return &ClassInfo{
-		Class:      Class{c.ClassGroupCode, c.ClassCode},
-		Properties: make(map[PropertyCode]*PropertyInfo),
+	return ClassInfo{
+		ClassGroup: g,
+		Class:      c,
+		Properties: map[PropertyCode]*PropertyInfo{},
 		Desc:       "unknown",
-	}
-}
-
-// Class is Echonet-Lite Class information
-type Class struct {
-	ClassGroupCode byte
-	ClassCode      byte // 0xF0
-}
-
-// NewClass returns new instance of Class
-func NewClass(o Object) Class {
-	log.Println("[ClassInfo]NewClass ClassGroup code:", o.classGroupCode(), " Class code:", o.classCode())
-	return Class{
-		ClassGroupCode: byte(o.classGroupCode()),
-		ClassCode:      byte(o.classCode()),
-	}
-}
-
-// NewClassWithCode returns new instance of Class
-func NewClassWithCode(cgc ClassGroupCode, cc ClassCode) Class {
-	log.Println("[ClassInfo]NewClass ClassGroup code:", cgc, " Class code:", cc)
-	return Class{
-		ClassGroupCode: byte(cgc),
-		ClassCode:      byte(cc),
 	}
 }
 
 // ClassInfo is static information about Class
 type ClassInfo struct {
-	Class      Class
+	ClassGroup ClassGroupCode
+	Class      ClassCode
 	Properties map[PropertyCode]*PropertyInfo
 	Desc       string
 }
@@ -90,7 +89,7 @@ func Load() (ClassInfoMap, error) {
 		return nil, err
 	}
 
-	classMap := make(ClassInfoMap)
+	classMap := NewClassInfoMap()
 
 	for _, file := range files {
 		codes := classCode(file)
@@ -105,11 +104,12 @@ func Load() (ClassInfoMap, error) {
 		properties := loadFromFile(path + "/" + file.Name())
 		if properties != nil {
 			clsInfo := ClassInfo{
-				Class:      Class{codes[0], codes[1]},
+				ClassGroup: ClassGroupCode(codes[0]),
+				Class:      ClassCode(codes[1]),
 				Properties: properties,
 				Desc:       "",
 			}
-			classMap[clsInfo.Class] = &clsInfo
+			classMap.add(clsInfo.ClassGroup, clsInfo.Class, clsInfo)
 		}
 	}
 
@@ -121,21 +121,23 @@ func Load() (ClassInfoMap, error) {
 		properties[0xd6] = &PropertyInfo{Code: 0xd6, Detail: "自ノードインスタンスリストS"}
 		properties[0xd7] = &PropertyInfo{Code: 0xd7, Detail: "自ノードクラスリストS"}
 		clsInfo := ClassInfo{
-			Class:      Class{0x0e, 0xf0},
+			ClassGroup: ClassGroupCode(0x0e),
+			Class:      ClassCode(0xf0),
 			Properties: properties,
 			Desc:       "ノードプロファイル",
 		}
 		logger.Println(clsInfo)
-		classMap[clsInfo.Class] = &clsInfo
+		classMap.add(clsInfo.ClassGroup, clsInfo.Class, clsInfo)
 	}
 
 	clsInfo := ClassInfo{
-		Class:      Class{0x05, 0xff},
+		ClassGroup: ClassGroupCode(0x05),
+		Class:      ClassCode(0xff),
 		Properties: make(map[PropertyCode]*PropertyInfo, 0),
 		Desc:       "コントローラ",
 	}
 	logger.Println(clsInfo)
-	classMap[clsInfo.Class] = &clsInfo
+	classMap.add(clsInfo.ClassGroup, clsInfo.Class, clsInfo)
 
 	return classMap, nil
 }

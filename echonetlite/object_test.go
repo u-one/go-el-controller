@@ -26,16 +26,6 @@ func Test_NewObjectFromData(t *testing.T) {
 
 }
 
-func TestObject_Class(t *testing.T) {
-	o := NewObject(ProfileGroup, Profile, 0x01)
-	got := o.Class()
-	want := Class{0x0e, 0xf0}
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("Class differs: (-want +got)\n%s", diff)
-	}
-}
-
 func TestObject_ClassGroupCode(t *testing.T) {
 	o := NewObject(ProfileGroup, Profile, 0x01)
 	got := o.classGroupCode()

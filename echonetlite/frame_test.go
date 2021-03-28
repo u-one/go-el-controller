@@ -164,7 +164,7 @@ func TestFrame_PerseProperties(t *testing.T) {
 		OuterTemp:    25,
 	}
 
-	got, err := parseProperties(input.SrcClass(), input.Properties)
+	got, err := parseProperties(input.SrcObj(), input.Properties)
 	if err != nil {
 		t.Error(err)
 	}

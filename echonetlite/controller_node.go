@@ -149,13 +149,13 @@ func (elc ControllerNode) onReceive(ctx context.Context, recv transport.ReceiveR
 	}
 	clogger.Printf("[%v] %s\n", recv.Address, frame)
 
-	var targetClass Class
+	var targetObj Object
 	if frame.ESV.isResponseOrNotification() {
-		targetClass = frame.SrcClass()
+		targetObj = frame.SrcObj()
 	} else {
-		targetClass = frame.DstClass()
+		targetObj = frame.DstObj()
 	}
-	obj, err := parseProperties(targetClass, frame.Properties)
+	obj, err := parseProperties(targetObj, frame.Properties)
 	if err != nil {
 		return fmt.Errorf("ParseProperties failed: %w", err)
 	}

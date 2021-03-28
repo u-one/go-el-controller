@@ -116,12 +116,12 @@ func ParseFrame(data []byte) (Frame, error) {
 }
 
 // parseProperties parses properties
-func parseProperties(class Class, properties []Property) (interface{}, error) {
+func parseProperties(obj Object, properties []Property) (interface{}, error) {
 	logger.Printf("ParseProperties: %v", properties)
 
-	switch ClassGroupCode(class.ClassGroupCode) {
+	switch obj.classGroupCode() {
 	case ProfileGroup:
-		switch ClassCode(class.ClassCode) {
+		switch obj.classCode() {
 		case Profile:
 			logger.Println("ノードプロファイル")
 			for _, p := range properties {
@@ -130,7 +130,7 @@ func parseProperties(class Class, properties []Property) (interface{}, error) {
 			return nil, nil
 		}
 	case AirConditionerGroup:
-		switch ClassCode(class.ClassCode) {
+		switch obj.classCode() {
 		case HomeAirConditioner:
 			logger.Println("エアコン")
 			obj := AirconObject{}
@@ -295,29 +295,27 @@ func parseHomeAirConditionerProperty(p Property, obj *AirconObject) bool {
 	return false
 }
 
-// SrcClass returns src class
-func (f Frame) SrcClass() Class {
-	return NewClass(f.SEOJ)
+// SrcObj returns src Object
+func (f Frame) SrcObj() Object {
+	return f.SEOJ
 }
 
-// DstClass returns dst class
-func (f Frame) DstClass() Class {
-	return NewClass(f.DEOJ)
+// DstObj returns dst Object
+func (f Frame) DstObj() Object {
+	return f.DEOJ
 }
 
 // String returns string
 func (f Frame) String() string {
-	sObjInfo := ClassInfoDB.Get(f.SrcClass())
-	dObjInfo := ClassInfoDB.Get(f.DstClass())
+	sObjInfo := ClassInfoDB.Get(f.SrcObj().classGroupCode(), f.SrcObj().classCode())
+	dObjInfo := ClassInfoDB.Get(f.DstObj().classGroupCode(), f.DstObj().classCode())
 
 	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s](%s) DEOJ[%s](%s) ESV[%s] OPC[%d]", f.Serialize(), f.EHD, f.TID, f.SEOJ, sObjInfo.Desc, f.DEOJ, dObjInfo.Desc, f.ESV, f.OPC)
 	for i, p := range f.Properties {
 		desc := ""
-		if sObjInfo != nil {
-			prop := sObjInfo.Properties[PropertyCode(p.Code)]
-			if prop != nil {
-				desc = prop.Detail
-			}
+		prop := sObjInfo.Properties[PropertyCode(p.Code)]
+		if prop != nil {
+			desc = prop.Detail
 		}
 
 		str = str + fmt.Sprintf(" EPC%d[%x](%s)", i, p.Code, desc)
@@ -329,8 +327,8 @@ func (f Frame) String() string {
 
 // Print prints frame detail
 func (f Frame) Print() {
-	sObjInfo := ClassInfoDB.Get(f.SrcClass())
-	dObjInfo := ClassInfoDB.Get(f.DstClass())
+	sObjInfo := ClassInfoDB.Get(f.SrcObj().classGroupCode(), f.SrcObj().classCode())
+	dObjInfo := ClassInfoDB.Get(f.DstObj().classGroupCode(), f.DstObj().classCode())
 
 	if false {
 		logger.Println("============ Frame ============")
@@ -345,11 +343,9 @@ func (f Frame) Print() {
 
 		for i, p := range f.Properties {
 			desc := ""
-			if sObjInfo != nil {
-				prop := sObjInfo.Properties[PropertyCode(p.Code)]
-				if prop != nil {
-					desc = prop.Detail
-				}
+			prop := sObjInfo.Properties[PropertyCode(p.Code)]
+			if prop != nil {
+				desc = prop.Detail
 			}
 
 			logger.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
