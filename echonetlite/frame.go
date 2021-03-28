@@ -62,8 +62,8 @@ func NewFrame(transID uint16, src, dest Object, service ESVType, props []Propert
 // EData returns serialized EDATA part
 func (f Frame) EData() Data {
 	eData := []byte{}
-	eData = append(eData, f.SEOJ.Data...)
-	eData = append(eData, f.DEOJ.Data...)
+	eData = append(eData, f.SEOJ.Data()...)
+	eData = append(eData, f.DEOJ.Data()...)
 	eData = append(eData, byte(f.ESV))
 	eData = append(eData, byte(f.OPC))
 	for _, p := range f.Properties {
@@ -104,6 +104,9 @@ func ParseFrame(data []byte) (Frame, error) {
 		EPC := EDATA[epcOffset : epcOffset+1]
 		PDC := EDATA[epcOffset+1 : epcOffset+2]
 		propertyValueLen := int(PDC[0])
+		if len(EDATA) < epcOffset+2+propertyValueLen {
+			return Frame{}, fmt.Errorf("invalid EDT length")
+		}
 		EDT := EDATA[epcOffset+2 : epcOffset+2+propertyValueLen]
 
 		props = append(props, Property{Code: EPC[0], Len: int(PDC[0]), Data: EDT})
@@ -307,50 +310,28 @@ func (f Frame) DstObj() Object {
 
 // String returns string
 func (f Frame) String() string {
-	sObjInfo := ClassInfoDB.Get(f.SrcObj().classGroupCode(), f.SrcObj().classCode())
-	dObjInfo := ClassInfoDB.Get(f.DstObj().classGroupCode(), f.DstObj().classCode())
-
-	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s](%s) DEOJ[%s](%s) ESV[%s] OPC[%d]", f.Serialize(), f.EHD, f.TID, f.SEOJ, sObjInfo.Desc, f.DEOJ, dObjInfo.Desc, f.ESV, f.OPC)
+	str := fmt.Sprintf("%s EHD[%s] TID[%s] SEOJ[%s] DEOJ[%s] ESV[%s] OPC[%d]", f.Serialize(), f.EHD, f.TID, f.SEOJ, f.DEOJ, f.ESV, f.OPC)
 	for i, p := range f.Properties {
-		desc := ""
-		prop := sObjInfo.Properties[PropertyCode(p.Code)]
-		if prop != nil {
-			desc = prop.Detail
-		}
-
-		str = str + fmt.Sprintf(" EPC%d[%x](%s)", i, p.Code, desc)
-		str = str + fmt.Sprintf(" PDC%d[%d]", i, p.Len)
-		str = str + fmt.Sprintf(" EDT%d[%s]", i, p.Data)
+		str = str + fmt.Sprintf(" %d %s", i, p)
 	}
 	return str
 }
 
 // Print prints frame detail
 func (f Frame) Print() {
-	sObjInfo := ClassInfoDB.Get(f.SrcObj().classGroupCode(), f.SrcObj().classCode())
-	dObjInfo := ClassInfoDB.Get(f.DstObj().classGroupCode(), f.DstObj().classCode())
-
 	if false {
 		logger.Println("============ Frame ============")
 		logger.Println(" ", f.Serialize())
 		logger.Println("  -----------------------------")
 		logger.Println("  EHD:", f.EHD)
 		logger.Println("  TID:", f.TID)
-		logger.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)", sObjInfo.Desc)
-		logger.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)", dObjInfo.Desc)
+		logger.Println("  SEOJ:", f.SEOJ, " (Source Echonet lite object)")
+		logger.Println("  DEOJ:", f.DEOJ, " (Dest. Echonet lite object)")
 		logger.Println("  ESV:", f.ESV, " (Echonet Lite Service)")
 		logger.Println("  OPC:", f.OPC, " (Num of properties)")
 
 		for i, p := range f.Properties {
-			desc := ""
-			prop := sObjInfo.Properties[PropertyCode(p.Code)]
-			if prop != nil {
-				desc = prop.Detail
-			}
-
-			logger.Printf("  EPC%d: %x (Echonet lite property) %s", i, p.Code, desc)
-			logger.Printf("  PDC%d: %d (Length (bytes) of EDT)", i, p.Len)
-			logger.Printf("  EDT%d: %s (Property data)", i, p.Data)
+			logger.Printf(" %d %s", i, p)
 		}
 		logger.Println("===============================")
 	} else {

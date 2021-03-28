@@ -178,8 +178,8 @@ func TestCreateCurrentPowerConsumptionFrame(t *testing.T) {
 	want := &Frame{
 		EHD:  Data{EchonetLite, FixedFormat},
 		TID:  Data{0x00, 0x00},
-		SEOJ: Object{Data{byte(ControllerGroup), byte(Controller), 0x01}},
-		DEOJ: Object{Data{byte(HomeEquipmentGroup), byte(LowVoltageSmartMeter), 0x01}},
+		SEOJ: Object{ControllerGroup, Controller, 0x01},
+		DEOJ: Object{HomeEquipmentGroup, LowVoltageSmartMeter, 0x01},
 		ESV:  Get,
 		OPC:  0x01,
 		Properties: []Property{

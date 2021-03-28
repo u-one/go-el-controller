@@ -1,32 +1,51 @@
 package echonetlite
 
+import (
+	"fmt"
+	"log"
+)
+
 // Object is object
 type Object struct {
-	Data Data
+	ClassGroup ClassGroupCode
+	Class      ClassCode
+	Num        int
 }
 
 // NewObject returns Object
 func NewObject(classGroup ClassGroupCode, class ClassCode, instance int) Object {
-	return Object{Data: Data{byte(classGroup), byte(class), byte(instance)}}
+	return Object{classGroup, class, instance}
 }
 
 // NewObjectFromData returns Object
 func NewObjectFromData(d Data) Object {
-	return Object{Data: d}
+	if len(d) < 3 {
+		log.Println("NewObjectFromData: invalid data")
+		return Object{}
+	}
+	return Object{ClassGroupCode(d[0]), ClassCode(d[1]), int(d[2])}
 }
 
 func (o Object) classGroupCode() ClassGroupCode {
-	return ClassGroupCode(o.Data[0])
+	return o.ClassGroup
 }
 
 func (o Object) classCode() ClassCode {
-	return ClassCode(o.Data[1])
+	return o.Class
 }
 
 func (o Object) isNodeProfile() bool {
-	if o.Data[0] == byte(ProfileGroup) &&
-		o.Data[1] == byte(Profile) {
+	if o.ClassGroup == ProfileGroup &&
+		o.Class == Profile {
 		return true
 	}
 	return false
+}
+
+func (o Object) String() string {
+	return fmt.Sprintf("%02x %02x %02x", o.ClassGroup, o.Class, o.Num)
+}
+
+func (o Object) Data() []byte {
+	return []byte{byte(o.ClassGroup), byte(o.Class), byte(o.Num)}
 }

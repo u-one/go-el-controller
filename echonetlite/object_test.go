@@ -8,7 +8,7 @@ import (
 
 func Test_NewObject(t *testing.T) {
 	got := NewObject(ProfileGroup, Profile, 0x01)
-	want := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	want := Object{0x0e, 0xf0, 0x01}
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Object differs: (-want +got)\n%s", diff)
@@ -18,7 +18,7 @@ func Test_NewObject(t *testing.T) {
 
 func Test_NewObjectFromData(t *testing.T) {
 	got := NewObjectFromData([]byte{0x0e, 0xf0, 0x01})
-	want := Object{Data: []byte{0x0e, 0xf0, 0x01}}
+	want := Object{0x0e, 0xf0, 0x01}
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Object differs: (-want +got)\n%s", diff)

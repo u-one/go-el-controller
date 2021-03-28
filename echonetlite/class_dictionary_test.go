@@ -9,9 +9,9 @@ import (
 func Test_ClassDictionary_get(t *testing.T) {
 	t.Parallel()
 
-	cInfo0101 := ClassInfo{0x01, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0101"}
-	cInfo0102 := ClassInfo{0x01, 0x02, map[PropertyCode]*PropertyInfo{}, "class info 0102"}
-	cInfo0201 := ClassInfo{0x02, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0201"}
+	cInfo0101 := ClassInfo{0x01, 0x01, PropertyDictionary{}, "class info 0101"}
+	cInfo0102 := ClassInfo{0x01, 0x02, PropertyDictionary{}, "class info 0102"}
+	cInfo0201 := ClassInfo{0x02, 0x01, PropertyDictionary{}, "class info 0201"}
 
 	testcases := []struct {
 		name     string
@@ -82,8 +82,8 @@ func Test_ClassDictionary_get(t *testing.T) {
 func Test_ClassDictionary_Get(t *testing.T) {
 	t.Parallel()
 
-	cInfo0102 := ClassInfo{0x01, 0x02, map[PropertyCode]*PropertyInfo{}, "class info 0102"}
-	cInfo0201 := ClassInfo{0x02, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0201"}
+	cInfo0102 := ClassInfo{0x01, 0x02, PropertyDictionary{}, "class info 0102"}
+	cInfo0201 := ClassInfo{0x02, 0x01, PropertyDictionary{}, "class info 0201"}
 	dict := ClassDictionary{
 		0x01: map[ClassCode]ClassInfo{0x02: cInfo0102},
 		0x02: map[ClassCode]ClassInfo{0x01: cInfo0201},
@@ -104,7 +104,7 @@ func Test_ClassDictionary_Get(t *testing.T) {
 		{
 			name:    "No hit",
 			inputCg: 0x03, inputC: 0x03,
-			wantInfo: ClassInfo{0x03, 0x03, map[PropertyCode]*PropertyInfo{}, "unknown"},
+			wantInfo: ClassInfo{0x03, 0x03, PropertyDictionary{}, "unknown"},
 		},
 	}
 
@@ -127,10 +127,10 @@ func Test_ClassDictionary_Get(t *testing.T) {
 func Test_ClassDictionary_add(t *testing.T) {
 	t.Parallel()
 
-	cInfo0101 := ClassInfo{0x01, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0101"}
-	cInfo0101Mod := ClassInfo{0x01, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0101 mod"}
-	cInfo0102 := ClassInfo{0x01, 0x02, map[PropertyCode]*PropertyInfo{}, "class info 0102"}
-	cInfo0201 := ClassInfo{0x02, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0201"}
+	cInfo0101 := ClassInfo{0x01, 0x01, PropertyDictionary{}, "class info 0101"}
+	cInfo0101Mod := ClassInfo{0x01, 0x01, PropertyDictionary{}, "class info 0101 mod"}
+	cInfo0102 := ClassInfo{0x01, 0x02, PropertyDictionary{}, "class info 0102"}
+	cInfo0201 := ClassInfo{0x02, 0x01, PropertyDictionary{}, "class info 0201"}
 
 	testcases := []struct {
 		name      string

@@ -1,5 +1,7 @@
 package echonetlite
 
+import "fmt"
+
 // PropertyCode represents property code
 type PropertyCode byte
 
@@ -78,4 +80,8 @@ func (p Property) Serialize() Data {
 	d = append(d, byte(p.Len))
 	d = append(d, p.Data...)
 	return d
+}
+
+func (p Property) String() string {
+	return fmt.Sprintf("EPC[%x] PDC[%d] EDT[%s]", p.Code, p.Len, p.Data)
 }
