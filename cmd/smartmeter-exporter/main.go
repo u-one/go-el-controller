@@ -17,9 +17,9 @@ import (
 var version string
 var bRouteID = flag.String("brouteid", "", "B-route ID")
 var bRoutePW = flag.String("broutepw", "", "B-route password")
-
 var serialPort = flag.String("serial-port", "/dev/ttyUSB0", "serial port for BP35C2")
 var exporterPort = flag.String("exporter-port", "8080", "address for prometheus")
+var updateInterval = flag.Duration("interval", 1*time.Minute, "interval to get data from smart-meter")
 
 var (
 	verCounter = prometheus.NewCounterVec(
@@ -81,7 +81,7 @@ func run() error {
 	}()
 
 	func() {
-		t := time.NewTicker(5 * time.Second)
+		t := time.NewTicker(*updateInterval)
 		defer t.Stop()
 
 		for {
