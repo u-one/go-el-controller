@@ -28,7 +28,7 @@ jobs:
           BROUTEID: ${{ secrets.BROUTEID }}
           BROUTEPW: ${{ secrets.BROUTEPW }}
           SERIAL_PORT: "/dev/ttyUSB0"
-          SMARTMETER_EXPORTER_PORT: "8083"
+          SMARTMETER_EXPORTER_PORT: "8081"
       run: |
         aws ssm send-command --document-name "AWS-RunRemoteScript" \
             --instance-ids "mi-0bdb280b6343b2544" \
