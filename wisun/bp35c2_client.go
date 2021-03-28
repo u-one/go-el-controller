@@ -45,10 +45,40 @@ func (c *BP35C2Client) Close() {
 	c.serial.Close()
 }
 
+func stringWithBinary(data []byte) string {
+	// For debug
+	var b strings.Builder
+	data = bytes.TrimSuffix(data, []byte{'\r', '\n'})
+	tokens := bytes.Split(data, []byte{' '})
+	for i, token := range tokens {
+		binary := false
+		for _, r := range string(token) {
+			if r == '\r' || r == '\n' {
+				continue
+			}
+			if !unicode.IsGraphic(r) {
+				binary = true
+			}
+		}
+		if i > 0 {
+			fmt.Fprintf(&b, " ")
+		}
+		if binary {
+			fmt.Fprintf(&b, "%#v", token)
+		} else {
+			s := string(token)
+			s = strings.ReplaceAll(s, "\r", "\\r")
+			s = strings.ReplaceAll(s, "\n", "\\n")
+			fmt.Fprintf(&b, "%s", s)
+		}
+	}
+	return b.String()
+}
+
 // Send sends serial command
 func (c *BP35C2Client) send(in []byte) error {
 	c.sendSeq++
-	log.Printf("Send[%d]:%s", c.sendSeq, string(in))
+	log.Printf("Send[%d]:%s", c.sendSeq, stringWithBinary(in))
 	var err error
 	if err = c.serial.Send(in); err != nil {
 		log.Fatal(err)
@@ -62,36 +92,6 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 	c.readSeq++
 	if err != nil {
 		return []byte{}, err
-	}
-
-	// For debug
-	stringWithBinary := func(data []byte) string {
-		var b strings.Builder
-		data = bytes.TrimSuffix(data, []byte{'\r', '\n'})
-		tokens := bytes.Split(data, []byte{' '})
-		for i, token := range tokens {
-			binary := false
-			for _, r := range string(token) {
-				if r == '\r' || r == '\n' {
-					continue
-				}
-				if !unicode.IsGraphic(r) {
-					binary = true
-				}
-			}
-			if i > 0 {
-				fmt.Fprintf(&b, " ")
-			}
-			if binary {
-				fmt.Fprintf(&b, "%#v", token)
-			} else {
-				s := string(token)
-				s = strings.ReplaceAll(s, "\r", "\\r")
-				s = strings.ReplaceAll(s, "\n", "\\n")
-				fmt.Fprintf(&b, "%s", s)
-			}
-		}
-		return b.String()
 	}
 
 	log.Printf("Read[%d]:%s", c.readSeq, stringWithBinary(line))
