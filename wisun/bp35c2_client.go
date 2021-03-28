@@ -13,6 +13,10 @@ import (
 	"github.com/u-one/go-el-controller/transport"
 )
 
+const (
+	commandTimeout = 60 * time.Second
+)
+
 // BP35C2Client is client for ROHM BP35C2
 type BP35C2Client struct {
 	sendSeq int
@@ -79,11 +83,7 @@ func stringWithBinary(data []byte) string {
 func (c *BP35C2Client) send(in []byte) error {
 	c.sendSeq++
 	log.Printf("Send[%d]:%s", c.sendSeq, stringWithBinary(in))
-	var err error
-	if err = c.serial.Send(in); err != nil {
-		log.Fatal(err)
-	}
-	return err
+	return c.serial.Send(in)
 }
 
 // recv receives serial response by line
@@ -170,7 +170,7 @@ func (c BP35C2Client) scan(duration int) bool {
 	c.recv()
 	c.recv()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
 	for {
@@ -200,7 +200,7 @@ func (c BP35C2Client) scan(duration int) bool {
 				return len(data) != 0
 			}
 		case <-ctx.Done():
-			log.Fatal(ctx.Err())
+			log.Printf("scan timeout:%s\n", ctx.Err())
 			return false
 		}
 	}
@@ -296,14 +296,15 @@ func (c *BP35C2Client) Join(desc PanDesc) (bool, error) {
 	c.recv()
 	c.recv()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Fatal()
-			return false, fmt.Errorf("timeout:%w", ctx.Err())
+			err := fmt.Errorf("timeout:%w", ctx.Err())
+			log.Println(err)
+			return false, err
 		default:
 			res, err := c.recv()
 			if err != nil {
@@ -349,13 +350,13 @@ func (c *BP35C2Client) Send(data []byte) ([]byte, error) {
 	cmd = append(cmd, []byte("\r\n")...)
 	c.send(cmd)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Fatal(ctx.Err())
+			log.Println(ctx.Err())
 			return nil, ctx.Err()
 		default:
 			res, err := c.recv()
@@ -412,10 +413,12 @@ func (c *BP35C2Client) Send(data []byte) ([]byte, error) {
 func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 
 	if len(bRouteID) == 0 {
-		log.Fatal("set B-route ID")
+		err := fmt.Errorf("set B-route ID")
+		return err
 	}
 	if len(bRoutePW) == 0 {
-		log.Fatal("set B-route password")
+		err := fmt.Errorf("set B-route password")
+		return err
 	}
 
 	c.SetBRoutePassword(bRoutePW)
@@ -423,12 +426,14 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 
 	pd, err := c.Scan()
 	if err != nil {
-		log.Fatal(err)
+		err := fmt.Errorf("Scan failed: %w", err)
+		return err
 	}
 
 	ipv6Addr, err := c.LL64(pd.Addr)
 	if err != nil {
-		log.Fatal(err)
+		err := fmt.Errorf("LL64 failed: %w", err)
+		return err
 	}
 
 	pd.IPV6Addr = ipv6Addr
@@ -436,22 +441,25 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 
 	err = c.SRegS2(pd.Channel)
 	if err != nil {
-		log.Fatal(err)
+		err := fmt.Errorf("SRegS2 failed: %w", err)
+		return err
 	}
 
 	err = c.SRegS3(pd.PanID)
 	if err != nil {
-		log.Fatal(err)
+		err := fmt.Errorf("SRegS3 failed: %w", err)
+		return err
 	}
 
 	// PANA authentication
 	joined, err := c.Join(pd)
 	if err != nil {
-		log.Fatal(err)
+		err := fmt.Errorf("Join failed: %w", err)
+		return err
 	}
 
 	if !joined {
-		log.Fatal("Failed to join")
+		return fmt.Errorf("Join failed")
 	}
 
 	c.panDesc = pd
