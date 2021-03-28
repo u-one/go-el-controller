@@ -41,9 +41,7 @@ func main() {
 	fmt.Printf("version: %s\n", version)
 	verCounter.WithLabelValues(version).Inc()
 
-	var err error
-	// TODO: refactor
-	echonetlite.ClassInfoDB, err = echonetlite.Load()
+	err := echonetlite.PrepareClassDictionary()
 	if err != nil {
 		log.Println(err)
 	}

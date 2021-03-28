@@ -2,6 +2,7 @@ package echonetlite
 
 import (
 	"encoding/hex"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -46,6 +47,7 @@ func Test_ParseFrame(t *testing.T) {
 		wantFrame Frame
 		wantData  Data
 		wantEData Data
+		wantErr   error
 	}{
 		{
 			name:  "test1",
@@ -110,6 +112,14 @@ func Test_ParseFrame(t *testing.T) {
 			wantData:  toData(t, "108100020ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7"),
 			wantEData: toData(t, "0ef00105ff0152088001308204010c0100d303000001d4020002d500d60401013001d7030101309f0e0d808283898a9d9e9fbfd3d4d6d7"),
 		},
+		{
+			name:      "invalid EDT length",
+			input:     []byte{0x10, 0x81, 0x0, 0x1, 0x2, 0x88, 0x1, 0x5, 0xff, 0x1, 0x72, 0x1, 0xe7, 0x4, 0x0, 0x0, 0x3},
+			wantFrame: Frame{},
+			wantErr:   fmt.Errorf("invalid EDT length"),
+			wantData:  []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			wantEData: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -119,10 +129,15 @@ func Test_ParseFrame(t *testing.T) {
 			t.Parallel()
 
 			got, err := ParseFrame(tc.input)
-			if err != nil {
-				t.Error(err)
+			if tc.wantErr != nil && err != nil {
+				if tc.wantErr.Error() != err.Error() {
+					t.Errorf("Diffrent result: want:%#v, got:%#v", tc.wantErr, err)
+				}
+			} else if tc.wantErr != err {
+				t.Errorf("Diffrent result: want:%#v, got:%#v", tc.wantErr, err)
 			}
-			log.Printf("[%v] %v\n", "", got)
+
+			//log.Printf("[%v] %v\n", "", got)
 
 			if diff := cmp.Diff(tc.wantFrame, got); diff != "" {
 				t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
@@ -273,8 +288,8 @@ func TestCreateAirconGetFrame(t *testing.T) {
 	want := &Frame{
 		EHD:  Data{0x10, 0x81},
 		TID:  Data{0x00, 0x00},
-		SEOJ: Object{Data{0x05, 0xff, 0x01}},
-		DEOJ: Object{Data{0x01, 0x30, 0x01}},
+		SEOJ: Object{0x05, 0xff, 0x01},
+		DEOJ: Object{0x01, 0x30, 0x01},
 		ESV:  ESVType(0x62),
 		OPC:  0x04,
 		Properties: []Property{

@@ -52,12 +52,17 @@ func run() error {
 	fmt.Printf("version: %s serial-port:%s exporter-port:%s\n", version, *serialPort, *exporterPort)
 	verCounter.WithLabelValues(version).Inc()
 
+	err := echonetlite.PrepareClassDictionary()
+	if err != nil {
+		log.Println(err)
+	}
+
 	wisunClient := wisun.NewBP35C2Client(*serialPort)
 	defer wisunClient.Close()
 	node := echonetlite.NewElectricityControllerNode(wisunClient)
 	defer node.Close()
 
-	err := node.Start(*bRouteID, *bRoutePW)
+	err = node.Start(*bRouteID, *bRoutePW)
 	if err != nil {
 		return fmt.Errorf("failed to start: %w", err)
 	}
