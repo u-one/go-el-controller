@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
+	"github.com/google/go-cmp/cmp"
 	"github.com/u-one/go-el-controller/wisun"
 )
 
@@ -90,7 +91,7 @@ func TestGetPowerConsumption(t *testing.T) {
 					Send([]byte("\x10\x81\x00\x01\x05\xff\x01\x02\x88\x01\x62\x01\xe7\x00")).
 					Return([]byte("\x10\x81\x00\x01\x02\x88\x01\x05\xff\x01\x72\x01\xe7\x04\x00\x00\x01\xf8"), nil)
 			},
-			want: 0,
+			want: 504,
 			err:  nil,
 		},
 		{
@@ -169,3 +170,24 @@ func Test_Get(t *testing.T) {
 	}
 }
 */
+
+func TestCreateCurrentPowerConsumptionFrame(t *testing.T) {
+
+	got := CreateCurrentPowerConsumptionFrame(0x0)
+
+	want := &Frame{
+		EHD:  Data{EchonetLite, FixedFormat},
+		TID:  Data{0x00, 0x00},
+		SEOJ: Object{Data{byte(ControllerGroup), byte(Controller), 0x01}},
+		DEOJ: Object{Data{byte(HomeEquipmentGroup), byte(LowVoltageSmartMeter), 0x01}},
+		ESV:  Get,
+		OPC:  0x01,
+		Properties: []Property{
+			{Code: byte(InstantPower), Len: 0, Data: []byte{}},
+		},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ParseFrame differs: (-want +got)\n%s", diff)
+	}
+}

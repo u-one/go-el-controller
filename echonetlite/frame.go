@@ -431,16 +431,3 @@ func CreateAirconGetFrame(transID uint16) *Frame {
 	frame := NewFrame(transID, src, dest, Get, props)
 	return &frame
 }
-
-// CreateCurrentPowerConsumptionFrame creates GET current power consumption frame
-func CreateCurrentPowerConsumptionFrame(transID uint16) *Frame {
-	// Get
-	src := NewObject(ControllerGroup, Controller, 0x01)
-	dest := NewObject(HomeEquipmentGroup, LowVoltageSmartMeter, 0x01)
-
-	props := []Property{}
-	props = append(props, Property{Code: byte(InstantPower), Len: 0, Data: []byte{}})
-
-	frame := NewFrame(transID, src, dest, Get, props)
-	return &frame
-}

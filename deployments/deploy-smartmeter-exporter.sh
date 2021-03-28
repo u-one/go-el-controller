@@ -2,6 +2,8 @@
 
 export BROUTEID=$1
 export BROUTEPW=$2
+export BP35C2_SERIAL_PORT=$3
+export EXPORTER_PORT=$4
 
 # setup
 sudo apt-get -y install jq
@@ -24,7 +26,7 @@ mv smartmeter-exporter.service /etc/systemd/system/
 cat << EOS > $DIR/start.sh
 #!/bin/sh
 
-/opt/u-one/echonetlite/smartmeter-exporter --brouteid=${BROUTEID} --broutepw=${BROUTEPW}
+/opt/u-one/echonetlite/smartmeter-exporter --brouteid=${BROUTEID} --broutepw=${BROUTEPW} --serial-port=${BP35C2_SERIAL_PORT} --exporter-port=${EXPORTER_PORT}
 EOS
 
 chmod 755 $DIR/start.sh

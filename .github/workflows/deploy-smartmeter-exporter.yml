@@ -27,7 +27,9 @@ jobs:
           SOURCEINFO: "\"{\\\"owner\\\":\\\"u-one\\\", \\\"repository\\\":\\\"go-el-controller\\\", \\\"path\\\": \\\"deployments\\\"}\""
           BROUTEID: ${{ secrets.BROUTEID }}
           BROUTEPW: ${{ secrets.BROUTEPW }}
+          SERIAL_PORT: "/dev/ttyUSB0"
+          SMARTMETER_EXPORTER_PORT: "8083"
       run: |
         aws ssm send-command --document-name "AWS-RunRemoteScript" \
             --instance-ids "mi-0bdb280b6343b2544" \
-            --parameters "{\"sourceType\":[\"GitHub\"],\"sourceInfo\":[$SOURCEINFO],\"commandLine\":[\"deploy-smartmeter-exporter.sh $BROUTEID $BROUTEPW\"]}"
+            --parameters "{\"sourceType\":[\"GitHub\"],\"sourceInfo\":[$SOURCEINFO],\"commandLine\":[\"deploy-smartmeter-exporter.sh $BROUTEID $BROUTEPW $SERIAL_PORT $SMARTMETER_EXPORTER_PORT \"]}"

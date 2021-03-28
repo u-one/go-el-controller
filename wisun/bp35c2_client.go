@@ -32,6 +32,7 @@ type PanDesc struct {
 
 // NewBP35C2Client returns BP35C2Client instance
 func NewBP35C2Client(portaddr string) *BP35C2Client {
+	fmt.Println("NewBP35C2Client: ", portaddr)
 	s := transport.NewSerialImpl(portaddr)
 	return &BP35C2Client{serial: s}
 }
@@ -142,7 +143,7 @@ func (c BP35C2Client) Version() (string, error) {
 // SetBRoutePassword is..
 func (c BP35C2Client) SetBRoutePassword(password string) error {
 	if len(password) == 0 {
-		return fmt.Errorf("set B-route password")
+		return fmt.Errorf("B-route password is empty")
 	}
 
 	c.send([]byte("SKSETPWD C " + password + "\r\n"))
@@ -154,7 +155,7 @@ func (c BP35C2Client) SetBRoutePassword(password string) error {
 // SetBRouteID  is ..
 func (c BP35C2Client) SetBRouteID(id string) error {
 	if len(id) == 0 {
-		return fmt.Errorf("set B-route ID")
+		return fmt.Errorf("B-route ID is empty")
 	}
 
 	c.send([]byte("SKSETRBID " + id + "\r\n"))

@@ -1,8 +1,26 @@
 package echonetlite
 
 import (
+	"encoding/binary"
 	"fmt"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	gpower = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "home",
+			Subsystem: "smartmeter_exporter",
+			Name:      "instantpower",
+			Help:      "",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(gpower)
+}
 
 // SmartMeterClient is interface for smart-meter cleint
 type SmartMeterClient interface {
@@ -39,14 +57,50 @@ func (n ElectricityControllerNode) Start(bRouteID, bRoutePassword string) error 
 func (n ElectricityControllerNode) GetPowerConsumption() (int, error) {
 	f := CreateCurrentPowerConsumptionFrame(1) // TODO: increment
 
-	eldata, err := n.client.Send(f.Serialize())
+	rdata, err := n.client.Send(f.Serialize())
 	if err != nil {
 		return 0, err
 	}
-	elFrame, err := ParseFrame(eldata)
+	rf, err := ParseFrame(rdata)
 	if err != nil {
 		return 0, fmt.Errorf("invalid frame: %w", err)
 	}
-	elFrame.Print()
+	rf.Print()
+
+	switch rf.ESV {
+	// 応答・通知
+	case GetRes: // プロパティ値読み出し応答
+		c := rf.SrcClass()
+		switch ClassGroupCode(c.ClassGroupCode) {
+		case HomeEquipmentGroup:
+			switch ClassCode(c.ClassCode) {
+			case LowVoltageSmartMeter:
+				for _, p := range rf.Properties {
+					switch PropertyCode(p.Code) {
+					case InstantPower:
+						power := binary.BigEndian.Uint32(p.Data)
+						gpower.Set(float64(power))
+						logger.Printf("Power: %d [W]", power)
+						return int(power), nil
+					}
+				}
+			}
+		}
+	default:
+	}
+
 	return 0, nil
+}
+
+// CreateCurrentPowerConsumptionFrame creates GET current power consumption frame
+func CreateCurrentPowerConsumptionFrame(transID uint16) *Frame {
+	// Get
+	src := NewObject(ControllerGroup, Controller, 0x01)
+	dest := NewObject(HomeEquipmentGroup, LowVoltageSmartMeter, 0x01)
+
+	props := []Property{}
+	props = append(props, Property{Code: byte(InstantPower), Len: 0, Data: []byte{}})
+
+	frame := NewFrame(transID, src, dest, Get, props)
+	return &frame
 }
