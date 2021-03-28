@@ -12,18 +12,19 @@ import (
 var (
 	// ClassInfoDB is a map with Class as key and ClassInfo as value
 	// TODO: refactor
-	ClassInfoDB ClassInfoMap
+	ClassInfoDB ClassDictionary
 )
 
-// ClassInfoMap is Class keyed ClassInfo map
-type ClassInfoMap map[ClassGroupCode]map[ClassCode]ClassInfo
+// ClassDictionary is Class keyed ClassInfo map
+type ClassDictionary map[ClassGroupCode]map[ClassCode]ClassInfo
 
-func NewClassInfoMap() ClassInfoMap {
-	return ClassInfoMap{}
+// NewClassDictionary returns ClassDictionary
+func NewClassDictionary() ClassDictionary {
+	return ClassDictionary{}
 }
 
-func (cim ClassInfoMap) get(g ClassGroupCode, c ClassCode) (ClassInfo, bool) {
-	if cm, ok := cim[g]; ok {
+func (dict ClassDictionary) get(g ClassGroupCode, c ClassCode) (ClassInfo, bool) {
+	if cm, ok := dict[g]; ok {
 		if i, ok := cm[c]; ok {
 			return i, true
 		}
@@ -31,18 +32,18 @@ func (cim ClassInfoMap) get(g ClassGroupCode, c ClassCode) (ClassInfo, bool) {
 	return ClassInfo{}, false
 }
 
-func (cim ClassInfoMap) add(g ClassGroupCode, c ClassCode, info ClassInfo) {
-	cm, ok := cim[g]
+func (dict ClassDictionary) add(g ClassGroupCode, c ClassCode, info ClassInfo) {
+	cm, ok := dict[g]
 	if !ok {
 		cm = map[ClassCode]ClassInfo{}
-		cim[g] = cm
+		dict[g] = cm
 	}
 	cm[c] = info
 }
 
 // Get returns ClassInfo from Class key
-func (cim ClassInfoMap) Get(g ClassGroupCode, c ClassCode) ClassInfo {
-	if i, ok := cim.get(g, c); ok {
+func (dict ClassDictionary) Get(g ClassGroupCode, c ClassCode) ClassInfo {
+	if i, ok := dict.get(g, c); ok {
 		return i
 	}
 	return ClassInfo{
@@ -73,7 +74,7 @@ type PropertyInfo struct {
 	Detail string
 }
 
-// Load loads class information from files and creates ClassInfoMap
+// Load loads class information from files and creates ClassDictionary
 // ex.
 // SEOJ 0x0ef001
 // class group code: 0e
@@ -81,7 +82,7 @@ type PropertyInfo struct {
 // instance: 01
 // EPC 0x80
 // property: 80
-func Load() (ClassInfoMap, error) {
+func Load() (ClassDictionary, error) {
 	path := "../../SonyCSL/ECHONETLite-ObjectDatabase/data/csv/ja"
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -89,7 +90,7 @@ func Load() (ClassInfoMap, error) {
 		return nil, err
 	}
 
-	classMap := NewClassInfoMap()
+	classMap := NewClassDictionary()
 
 	for _, file := range files {
 		codes := classCode(file)

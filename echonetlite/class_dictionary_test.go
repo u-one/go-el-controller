@@ -6,7 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func Test_ClassInfoMap_get(t *testing.T) {
+func Test_ClassDictionary_get(t *testing.T) {
 	t.Parallel()
 
 	cInfo0101 := ClassInfo{0x01, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0101"}
@@ -15,7 +15,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 
 	testcases := []struct {
 		name     string
-		m        ClassInfoMap
+		dict     ClassDictionary
 		inputCg  ClassGroupCode
 		inputC   ClassCode
 		wantInfo ClassInfo
@@ -23,7 +23,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 	}{
 		{
 			name: "Hit",
-			m: ClassInfoMap{
+			dict: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101, 0x02: cInfo0102},
 				0x02: map[ClassCode]ClassInfo{0x01: cInfo0201},
 			},
@@ -34,7 +34,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 		},
 		{
 			name:     "ClassGroup no hit",
-			m:        ClassInfoMap{0x01: map[ClassCode]ClassInfo{0x01: cInfo0101}},
+			dict:     ClassDictionary{0x01: map[ClassCode]ClassInfo{0x01: cInfo0101}},
 			inputCg:  0x02,
 			inputC:   0x01,
 			wantInfo: ClassInfo{},
@@ -42,7 +42,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 		},
 		{
 			name:     "Class no hit",
-			m:        ClassInfoMap{0x01: map[ClassCode]ClassInfo{0x01: cInfo0101}},
+			dict:     ClassDictionary{0x01: map[ClassCode]ClassInfo{0x01: cInfo0101}},
 			inputCg:  0x01,
 			inputC:   0x02,
 			wantInfo: ClassInfo{},
@@ -50,7 +50,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 		},
 		{
 			name:     "No data",
-			m:        ClassInfoMap{},
+			dict:     ClassDictionary{},
 			inputCg:  0x01,
 			inputC:   0x02,
 			wantInfo: ClassInfo{},
@@ -64,7 +64,7 @@ func Test_ClassInfoMap_get(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotInfo, gotBool := tc.m.get(tc.inputCg, tc.inputC)
+			gotInfo, gotBool := tc.dict.get(tc.inputCg, tc.inputC)
 
 			if diff := cmp.Diff(tc.wantInfo, gotInfo); diff != "" {
 				t.Errorf("ClassInfo differs: (-want +got)\n%s", diff)
@@ -79,12 +79,12 @@ func Test_ClassInfoMap_get(t *testing.T) {
 
 }
 
-func Test_ClassInfoMap_Get(t *testing.T) {
+func Test_ClassDictionary_Get(t *testing.T) {
 	t.Parallel()
 
 	cInfo0102 := ClassInfo{0x01, 0x02, map[PropertyCode]*PropertyInfo{}, "class info 0102"}
 	cInfo0201 := ClassInfo{0x02, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0201"}
-	m := ClassInfoMap{
+	dict := ClassDictionary{
 		0x01: map[ClassCode]ClassInfo{0x02: cInfo0102},
 		0x02: map[ClassCode]ClassInfo{0x01: cInfo0201},
 	}
@@ -114,7 +114,7 @@ func Test_ClassInfoMap_Get(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotInfo := m.Get(tc.inputCg, tc.inputC)
+			gotInfo := dict.Get(tc.inputCg, tc.inputC)
 
 			if diff := cmp.Diff(tc.wantInfo, gotInfo); diff != "" {
 				t.Errorf("ClassInfo differs: (-want +got)\n%s", diff)
@@ -124,7 +124,7 @@ func Test_ClassInfoMap_Get(t *testing.T) {
 
 }
 
-func Test_ClassInfoMap_add(t *testing.T) {
+func Test_ClassDictionary_add(t *testing.T) {
 	t.Parallel()
 
 	cInfo0101 := ClassInfo{0x01, 0x01, map[PropertyCode]*PropertyInfo{}, "class info 0101"}
@@ -134,48 +134,48 @@ func Test_ClassInfoMap_add(t *testing.T) {
 
 	testcases := []struct {
 		name      string
-		m         ClassInfoMap
+		dict      ClassDictionary
 		inputCg   ClassGroupCode
 		inputC    ClassCode
 		inputInfo ClassInfo
-		wantMap   ClassInfoMap
+		wantMap   ClassDictionary
 	}{
 		{
 			name:    "Add to empty map",
-			m:       ClassInfoMap{},
+			dict:    ClassDictionary{},
 			inputCg: 0x01, inputC: 0x01, inputInfo: cInfo0101,
-			wantMap: ClassInfoMap{
+			wantMap: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101},
 			},
 		},
 		{
 			name: "ClassGroup exists",
-			m: ClassInfoMap{
+			dict: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101},
 			},
 			inputCg: 0x01, inputC: 0x02, inputInfo: cInfo0102,
-			wantMap: ClassInfoMap{
+			wantMap: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101, 0x02: cInfo0102},
 			},
 		},
 		{
 			name: "ClassGroup not exists",
-			m: ClassInfoMap{
+			dict: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101},
 			},
 			inputCg: 0x02, inputC: 0x01, inputInfo: cInfo0201,
-			wantMap: ClassInfoMap{
+			wantMap: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101},
 				0x02: map[ClassCode]ClassInfo{0x01: cInfo0201},
 			},
 		},
 		{
 			name: "Both exists",
-			m: ClassInfoMap{
+			dict: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101},
 			},
 			inputCg: 0x01, inputC: 0x01, inputInfo: cInfo0101Mod,
-			wantMap: ClassInfoMap{
+			wantMap: ClassDictionary{
 				0x01: map[ClassCode]ClassInfo{0x01: cInfo0101Mod},
 			},
 		},
@@ -187,9 +187,9 @@ func Test_ClassInfoMap_add(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			tc.m.add(tc.inputCg, tc.inputC, tc.inputInfo)
+			tc.dict.add(tc.inputCg, tc.inputC, tc.inputInfo)
 
-			if diff := cmp.Diff(tc.wantMap, tc.m); diff != "" {
+			if diff := cmp.Diff(tc.wantMap, tc.dict); diff != "" {
 				t.Errorf("ClassInfo differs: (-want +got)\n%s", diff)
 			}
 
