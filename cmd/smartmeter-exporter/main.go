@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -58,14 +61,13 @@ func run() error {
 	}
 
 	wisunClient := wisun.NewBP35C2Client(*serialPort)
-	defer wisunClient.Close()
 	node := echonetlite.NewElectricityControllerNode(wisunClient)
-	defer node.Close()
 
 	err = node.Start(*bRouteID, *bRoutePW)
 	if err != nil {
 		return fmt.Errorf("failed to start: %w", err)
 	}
+	defer node.Close()
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -85,6 +87,9 @@ func run() error {
 		log.Println("exporter finished")
 	}()
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
 	func() {
 		t := time.NewTicker(*updateInterval)
 		defer t.Stop()
@@ -97,6 +102,9 @@ func run() error {
 					log.Println(err)
 				}
 			case <-ctx.Done():
+				return
+			case sig := <-sigCh:
+				log.Println("Signal received:", sig)
 				return
 			}
 		}
