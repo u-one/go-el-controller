@@ -63,9 +63,12 @@ func Test_Medium_scan(t *testing.T) {
 			c := NewBP35C2Client(testPort)
 			defer c.Close()
 
-			got := c.scan(tc.duration)
+			got, err := c.scan(tc.duration)
 			if tc.want != got {
 				t.Errorf("Diffrent result: want:%v, got:%v", tc.want, got)
+			}
+			if err != nil {
+				t.Errorf("Error: %v", err)
 			}
 		})
 	}

@@ -65,6 +65,13 @@ func (e BP35C2Emulator) ok() {
 	fmt.Println("=>OK")
 }
 
+func (e BP35C2Emulator) er(num int) {
+	code := fmt.Sprintf("ER%02d", num)
+	e.writer.WriteString(code + "\r\n")
+	e.flush()
+	fmt.Println("=>", code)
+}
+
 func (e BP35C2Emulator) rxUDP(data []byte) {
 	dlen := len(data)
 	cmd := fmt.Sprintf("ERXUDP FE80:0000:0000:0000:021C:6400:030C:12A4 FF02:0000:0000:0000:0000:0000:0000:0001 0E1A 0E1A 001C6400030C12A4 1 0 %04x ", dlen)
@@ -99,6 +106,8 @@ func (e *BP35C2Emulator) Start() {
 		} else if bytes.HasPrefix(line, []byte("SKSCAN")) {
 			e.echoBack()
 			e.ok()
+
+			time.Sleep(3 * time.Second)
 
 			cmd := string(line)
 			params := strings.Split(cmd, " ")

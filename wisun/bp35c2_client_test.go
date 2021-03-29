@@ -148,29 +148,116 @@ func Test_Version(t *testing.T) {
 func Test_SetBRoutePassword(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := transport.NewMockSerial(ctrl)
-	mock(t, m, "SKSETPWD C TESTPWDYYYYY\r\n", []resp{
-		{"OK\r\n", nil},
-	})
+	testcases := []struct {
+		name   string
+		pw     string
+		input  string
+		output []resp
+		want   string
+		err    error
+	}{
+		{
+			name:  "success",
+			pw:    "TESTPWDYYYYY",
+			input: "SKSETPWD C TESTPWDYYYYY\r\n",
+			output: []resp{
+				{"OK\r\n", nil},
+			},
+			err: nil,
+		},
+		{
+			name:  "error",
+			pw:    "TESTPWDYYYYY",
+			input: "SKSETPWD C TESTPWDYYYYY\r\n",
+			output: []resp{
+				{"ER01\r\n", nil},
+			},
+			err: fmt.Errorf("command failed [ER01]"),
+		},
+	}
 
-	c := &BP35C2Client{serial: m}
-	c.SetBRoutePassword("TESTPWDYYYYY")
+	for _, tc := range testcases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := transport.NewMockSerial(ctrl)
+
+			mock(t, m, tc.input, tc.output)
+
+			c := &BP35C2Client{serial: m}
+			err := c.SetBRoutePassword(tc.input)
+
+			if tc.err != nil && err != nil {
+				if tc.err.Error() != err.Error() {
+					t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+				}
+			} else if tc.err != err {
+				t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+			}
+
+		})
+	}
+
 }
 
 func Test_SetBRouteID(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	m := transport.NewMockSerial(ctrl)
-	mock(t, m, "SKSETRBID 000000TESTID00000000000000000000\r\n", []resp{
-		{"OK\r\n", nil},
-	})
+	testcases := []struct {
+		name   string
+		pw     string
+		input  string
+		output []resp
+		want   string
+		err    error
+	}{
+		{
+			name:  "success",
+			pw:    "000000TESTID00000000000000000000",
+			input: "SKSETRBID 000000TESTID00000000000000000000\r\n",
+			output: []resp{
+				{"OK\r\n", nil},
+			},
+			err: nil,
+		},
+		{
+			name:  "error",
+			pw:    "000000TESTID00000000000000000000",
+			input: "SKSETRBID 000000TESTID00000000000000000000\r\n",
+			output: []resp{
+				{"ER01\r\n", nil},
+			},
+			err: fmt.Errorf("command failed [ER01]"),
+		},
+	}
 
-	c := &BP35C2Client{serial: m}
-	c.SetBRouteID("000000TESTID00000000000000000000")
+	for _, tc := range testcases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := transport.NewMockSerial(ctrl)
+			mock(t, m, tc.input, tc.output)
+			c := &BP35C2Client{serial: m}
+
+			err := c.SetBRouteID(tc.input)
+
+			if tc.err != nil && err != nil {
+				if tc.err.Error() != err.Error() {
+					t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+				}
+			} else if tc.err != err {
+				t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+			}
+		})
+	}
 }
 
 func Test_scan(t *testing.T) {
@@ -182,6 +269,7 @@ func Test_scan(t *testing.T) {
 		input    string
 		response []resp
 		expect   bool
+		err      error
 	}{
 		{
 			name:     "not found",
@@ -203,28 +291,26 @@ func Test_scan(t *testing.T) {
 			},
 			expect: true,
 		},
-
-		/* TODO: fix
-		   {
-		   	name:     "fail",
-		   	duration: 5,
-		   	input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
-		   	response: []resp{
-		   		{"FAIL\r\n", nil},
-		   	},
-		   	expect: false,
-		   },
-		   {
-		   	name:     "fail",
-		   	duration: 5,
-		   	input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
-		   	response: []resp{
-		   		{"\r\n", fmt.Errorf("error")},
-		   	},
-		   	expect: false,
-		   },
-		*/
-
+		{
+			name:     "received error",
+			duration: 5,
+			input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
+			response: []resp{
+				{"ER01\r\n", nil},
+			},
+			expect: false,
+			err:    fmt.Errorf("command failed [ER01]"),
+		},
+		{
+			name:     "error",
+			duration: 5,
+			input:    "SKSCAN 2 FFFFFFFF 5 0 \r\n",
+			response: []resp{
+				{"", fmt.Errorf("error")},
+			},
+			expect: false,
+			err:    fmt.Errorf("error"),
+		},
 	}
 
 	for _, tc := range testcases {
@@ -238,10 +324,19 @@ func Test_scan(t *testing.T) {
 			mock(t, m, tc.input, tc.response)
 
 			c := &BP35C2Client{serial: m}
-			got := c.scan(tc.duration)
+			got, err := c.scan(tc.duration)
 			if tc.expect != got {
 				t.Errorf("Diffrent result: want:%v, got:%v", tc.expect, got)
 			}
+
+			if tc.err != nil && err != nil {
+				if tc.err.Error() != err.Error() {
+					t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+				}
+			} else if tc.err != err {
+				t.Errorf("Diffrent result: want:%#v, got:%#v", tc.err, err)
+			}
+
 		})
 	}
 }

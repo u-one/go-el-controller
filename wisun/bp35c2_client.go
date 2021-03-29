@@ -83,7 +83,16 @@ func stringWithBinary(data []byte) string {
 func (c *BP35C2Client) send(in []byte) error {
 	c.sendSeq++
 	log.Printf("Send[%d]:%s", c.sendSeq, stringWithBinary(in))
-	return c.serial.Send(in)
+	err := c.serial.Send(in)
+	if err != nil {
+		return err
+	}
+	// Echoback
+	_, err = c.recv()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // recv receives serial response by line
@@ -99,15 +108,20 @@ func (c *BP35C2Client) recv() ([]byte, error) {
 	return line, err
 }
 
+func (c *BP35C2Client) recvOK() error {
+	r, err := c.recv()
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(r, []byte("OK")) {
+		return fmt.Errorf("command failed [%s]", r)
+	}
+	return nil
+}
+
 // Version is ..
 func (c BP35C2Client) Version() (string, error) {
 	err := c.send([]byte("SKVER\r\n"))
-	if err != nil {
-		return "", err
-	}
-
-	// Echoback
-	_, err = c.recv()
 	if err != nil {
 		return "", err
 	}
@@ -128,49 +142,54 @@ func (c BP35C2Client) Version() (string, error) {
 	}
 	ver := string(tokens[1])
 
-	//OK
-	r, err = c.recv()
+	err = c.recvOK()
 	if err != nil {
 		return ver, err
 	}
-	if !bytes.Equal(r, []byte("OK")) {
-		return ver, fmt.Errorf("command failed [%s]", r)
-	}
-
 	return ver, nil
 }
 
 // SetBRoutePassword is..
 func (c BP35C2Client) SetBRoutePassword(password string) error {
 	if len(password) == 0 {
-		return fmt.Errorf("B-route password is empty")
+		return fmt.Errorf("b-route password is empty")
 	}
 
-	c.send([]byte("SKSETPWD C " + password + "\r\n"))
-	c.recv()
-	c.recv()
-	return nil
+	err := c.send([]byte("SKSETPWD C " + password + "\r\n"))
+	if err != nil {
+		return err
+	}
+
+	return c.recvOK()
 }
 
 // SetBRouteID  is ..
 func (c BP35C2Client) SetBRouteID(id string) error {
 	if len(id) == 0 {
-		return fmt.Errorf("B-route ID is empty")
+		return fmt.Errorf("b-route ID is empty")
 	}
 
-	c.send([]byte("SKSETRBID " + id + "\r\n"))
-	c.recv()
-	c.recv()
-	return nil
+	err := c.send([]byte("SKSETRBID " + id + "\r\n"))
+	if err != nil {
+		return err
+	}
+
+	return c.recvOK()
 }
 
-func (c BP35C2Client) scan(duration int) bool {
-	cmd := fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)
-	c.send([]byte(cmd))
-	c.recv()
-	c.recv()
+func (c BP35C2Client) scan(duration int) (bool, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	err := c.send([]byte(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)))
+	if err != nil {
+		return false, err
+	}
+
+	err = c.recvOK()
+	if err != nil {
+		return false, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
 	for {
@@ -197,11 +216,10 @@ func (c BP35C2Client) scan(duration int) bool {
 		select {
 		case err := <-ch:
 			if err == nil {
-				return len(data) != 0
+				return len(data) != 0, nil
 			}
 		case <-ctx.Done():
-			log.Printf("scan timeout:%s\n", ctx.Err())
-			return false
+			return false, fmt.Errorf("scan timeout: %w", ctx.Err())
 		}
 	}
 }
@@ -245,7 +263,10 @@ func (c BP35C2Client) Scan() (PanDesc, error) {
 			break
 		}
 
-		found := c.scan(duration)
+		found, err := c.scan(duration)
+		if err != nil {
+			return PanDesc{}, fmt.Errorf("scan failed: %w", err)
+		}
 		if found {
 			break
 		}
@@ -261,7 +282,6 @@ func (c BP35C2Client) Scan() (PanDesc, error) {
 func (c BP35C2Client) LL64(addr string) (string, error) {
 	cmd := fmt.Sprintf("SKLL64 %s\r\n", addr)
 	c.send([]byte(cmd))
-	c.recv()
 	line, err := c.recv()
 	if err != nil {
 		return "", err
@@ -276,7 +296,6 @@ func (c BP35C2Client) SRegS2(channel string) error {
 	cmd := fmt.Sprintf("SKSREG S2 %s\r\n", channel)
 	c.send([]byte(cmd))
 	c.recv()
-	c.recv()
 	return nil
 }
 
@@ -285,7 +304,6 @@ func (c BP35C2Client) SRegS3(panID string) error {
 	cmd := fmt.Sprintf("SKSREG S3 %s\r\n", panID)
 	c.send([]byte(cmd))
 	c.recv()
-	c.recv()
 	return nil
 }
 
@@ -293,7 +311,6 @@ func (c BP35C2Client) SRegS3(panID string) error {
 func (c *BP35C2Client) Join(desc PanDesc) (bool, error) {
 	cmd := fmt.Sprintf("SKJOIN %s\r\n", desc.IPV6Addr)
 	c.send([]byte(cmd))
-	c.recv()
 	c.recv()
 
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
@@ -421,8 +438,17 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 		return err
 	}
 
-	c.SetBRoutePassword(bRoutePW)
-	c.SetBRouteID(bRouteID)
+	err := c.SetBRoutePassword(bRoutePW)
+	if err != nil {
+		err := fmt.Errorf("SetBRoutePassword failed: %w", err)
+		return err
+	}
+
+	err = c.SetBRouteID(bRouteID)
+	if err != nil {
+		err := fmt.Errorf("SetBRouteID failed: %w", err)
+		return err
+	}
 
 	pd, err := c.Scan()
 	if err != nil {
@@ -471,6 +497,5 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 // Term terminates PANA session
 func (c BP35C2Client) Term() {
 	c.send([]byte("SKTERM\r\n"))
-	c.recv()
 	c.recv()
 }
