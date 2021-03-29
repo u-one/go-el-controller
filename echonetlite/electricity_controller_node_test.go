@@ -1,6 +1,7 @@
 package echonetlite
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -11,6 +12,8 @@ import (
 
 func TestStart(t *testing.T) {
 	t.Parallel()
+
+	ctx := context.Background()
 
 	testcases := []struct {
 		name   string
@@ -24,7 +27,7 @@ func TestStart(t *testing.T) {
 			brID: "0123456789AB",
 			brPW: "00112233445566778899AABBCCDDEEFF",
 			client: func(m *wisun.MockClient) {
-				m.EXPECT().Connect("0123456789AB", "00112233445566778899AABBCCDDEEFF").Return(nil)
+				m.EXPECT().Connect(ctx, "0123456789AB", "00112233445566778899AABBCCDDEEFF").Return(nil)
 			},
 			err: nil,
 		},
@@ -33,9 +36,9 @@ func TestStart(t *testing.T) {
 			brID: "0123456789AB",
 			brPW: "00112233445566778899AABBCCDDEEFF",
 			client: func(m *wisun.MockClient) {
-				m.EXPECT().Connect("0123456789AB", "00112233445566778899AABBCCDDEEFF").Return(fmt.Errorf("error"))
+				m.EXPECT().Connect(ctx, "0123456789AB", "00112233445566778899AABBCCDDEEFF").Return(fmt.Errorf("error"))
 			},
-			err: fmt.Errorf("Connect failed: error"),
+			err: fmt.Errorf("exec Connect failed: error"),
 		},
 	}
 
@@ -50,7 +53,7 @@ func TestStart(t *testing.T) {
 			tc.client(mock)
 
 			node := NewElectricityControllerNode(mock)
-			err := node.Start(tc.brID, tc.brPW)
+			err := node.Start(ctx, tc.brID, tc.brPW)
 
 			if tc.err != nil && err != nil {
 				if tc.err.Error() != err.Error() {

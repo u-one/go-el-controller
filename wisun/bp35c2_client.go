@@ -177,7 +177,7 @@ func (c BP35C2Client) SetBRouteID(id string) error {
 	return c.recvOK()
 }
 
-func (c BP35C2Client) scan(duration int) (bool, error) {
+func (c BP35C2Client) scan(ctx context.Context, duration int) (bool, error) {
 
 	err := c.send([]byte(fmt.Sprintf("SKSCAN 2 FFFFFFFF %d 0 \r\n", duration)))
 	if err != nil {
@@ -188,9 +188,6 @@ func (c BP35C2Client) scan(duration int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
 
 	for {
 		ch := make(chan error)
@@ -255,7 +252,7 @@ func (c BP35C2Client) receivePanDesc() (PanDesc, error) {
 }
 
 // Scan is ..
-func (c BP35C2Client) Scan() (PanDesc, error) {
+func (c BP35C2Client) Scan(ctx context.Context) (PanDesc, error) {
 	duration := 4
 	for {
 		if duration > 8 {
@@ -263,7 +260,7 @@ func (c BP35C2Client) Scan() (PanDesc, error) {
 			break
 		}
 
-		found, err := c.scan(duration)
+		found, err := c.scan(ctx, duration)
 		if err != nil {
 			return PanDesc{}, fmt.Errorf("scan failed: %w", err)
 		}
@@ -427,7 +424,7 @@ func (c *BP35C2Client) Send(data []byte) ([]byte, error) {
 }
 
 // Connect connects to smart-meter
-func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
+func (c *BP35C2Client) Connect(ctx context.Context, bRouteID, bRoutePW string) error {
 
 	if len(bRouteID) == 0 {
 		err := fmt.Errorf("set B-route ID")
@@ -450,7 +447,7 @@ func (c *BP35C2Client) Connect(bRouteID, bRoutePW string) error {
 		return err
 	}
 
-	pd, err := c.Scan()
+	pd, err := c.Scan(ctx)
 	if err != nil {
 		err := fmt.Errorf("Scan failed: %w", err)
 		return err

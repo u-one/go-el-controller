@@ -63,14 +63,17 @@ func run() error {
 	wisunClient := wisun.NewBP35C2Client(*serialPort)
 	node := echonetlite.NewElectricityControllerNode(wisunClient)
 
-	err = node.Start(*bRouteID, *bRoutePW)
+	ctx := context.Background()
+	initCtx, cancel := context.WithTimeout(ctx, 300*time.Second)
+
+	err = node.Start(initCtx, *bRouteID, *bRoutePW)
 	if err != nil {
+		cancel()
 		return fmt.Errorf("failed to start: %w", err)
 	}
 	defer node.Close()
 
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
 	// Start prometheus exporter

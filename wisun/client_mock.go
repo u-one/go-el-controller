@@ -5,6 +5,7 @@
 package wisun
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -33,17 +34,17 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // Connect mocks base method
-func (m *MockClient) Connect(bRouteID, bRoutePW string) error {
+func (m *MockClient) Connect(ctx context.Context, bRouteID, bRoutePW string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connect", bRouteID, bRoutePW)
+	ret := m.ctrl.Call(m, "Connect", ctx, bRouteID, bRoutePW)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Connect indicates an expected call of Connect
-func (mr *MockClientMockRecorder) Connect(bRouteID, bRoutePW interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Connect(ctx, bRouteID, bRoutePW interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockClient)(nil).Connect), bRouteID, bRoutePW)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockClient)(nil).Connect), ctx, bRouteID, bRoutePW)
 }
 
 // Close mocks base method

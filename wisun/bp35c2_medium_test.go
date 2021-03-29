@@ -3,6 +3,7 @@
 package wisun
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -63,7 +64,7 @@ func Test_Medium_scan(t *testing.T) {
 			c := NewBP35C2Client(testPort)
 			defer c.Close()
 
-			got, err := c.scan(tc.duration)
+			got, err := c.scan(context.Background(), tc.duration)
 			if tc.want != got {
 				t.Errorf("Diffrent result: want:%v, got:%v", tc.want, got)
 			}
@@ -98,7 +99,7 @@ func Test_Medium_Scan(t *testing.T) {
 			c := NewBP35C2Client(testPort)
 			defer c.Close()
 
-			got, err := c.Scan()
+			got, err := c.Scan(context.Background())
 			if tc.want != got {
 				t.Errorf("Diffrent result: want:%v, got:%v", tc.want, got)
 			}

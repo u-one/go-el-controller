@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -31,7 +32,7 @@ func run() error {
 	}
 	fmt.Printf("Version: %s\n", ver)
 
-	err = wisunClient.Connect(*bRouteID, *bRoutePW)
+	err = wisunClient.Connect(context.Background(), *bRouteID, *bRoutePW)
 	if err != nil {
 		return fmt.Errorf("failed to exec Connect: %v", err)
 	}

@@ -1,6 +1,7 @@
 package echonetlite
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -24,7 +25,7 @@ func init() {
 
 // SmartMeterClient is interface for smart-meter cleint
 type SmartMeterClient interface {
-	Connect(bRouteID, bRoutePW string) error
+	Connect(ctx context.Context, bRouteID, bRoutePW string) error
 	Close()
 	Send(data []byte) ([]byte, error)
 }
@@ -45,10 +46,10 @@ func (n ElectricityControllerNode) Close() {
 }
 
 // Start starts to connect to smart-meter
-func (n ElectricityControllerNode) Start(bRouteID, bRoutePassword string) error {
-	err := n.client.Connect(bRouteID, bRoutePassword)
+func (n ElectricityControllerNode) Start(ctx context.Context, bRouteID, bRoutePassword string) error {
+	err := n.client.Connect(ctx, bRouteID, bRoutePassword)
 	if err != nil {
-		return fmt.Errorf("Connect failed: %v", err)
+		return fmt.Errorf("exec Connect failed: %v", err)
 	}
 	return nil
 }

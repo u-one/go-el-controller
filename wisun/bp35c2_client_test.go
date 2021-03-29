@@ -1,6 +1,7 @@
 package wisun
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -324,7 +325,7 @@ func Test_scan(t *testing.T) {
 			mock(t, m, tc.input, tc.response)
 
 			c := &BP35C2Client{serial: m}
-			got, err := c.scan(tc.duration)
+			got, err := c.scan(context.Background(), tc.duration)
 			if tc.expect != got {
 				t.Errorf("Diffrent result: want:%v, got:%v", tc.expect, got)
 			}
